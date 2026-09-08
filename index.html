@@ -97,17 +97,7 @@
 
         <!-- TAB: INICIO -->
         <div id="inicio" class="tab-content active">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-5 mb-8">
-                <!-- Control de Caja -->
-                <div class="card-pro p-5 rounded-2xl border-t-4 border-t-accent flex flex-col justify-center text-center">
-                    <h3 class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">Control de Turno</h3>
-                    <div id="btnEstadoCajaContainer">
-                        <button id="btnEstadoCaja" class="w-full py-3 bg-success hover:bg-emerald-400 text-slate-900 font-black rounded-xl shadow-neon-success transition uppercase text-sm">
-                            <i class="fa-solid fa-lock-open mr-2"></i> Abrir Caja
-                        </button>
-                    </div>
-                </div>
-
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
                 <div class="card-pro p-5 rounded-2xl"><h3 class="text-slate-400 text-xs uppercase mb-1">Ingresos Globales</h3><p class="text-3xl font-bold text-success" id="totalIngresos">$0</p></div>
                 <div class="card-pro p-5 rounded-2xl"><h3 class="text-slate-400 text-xs uppercase mb-1">Gastos Globales</h3><p class="text-3xl font-bold text-danger" id="totalGastos">$0</p></div>
                 <div class="card-pro p-5 rounded-2xl"><h3 class="text-slate-400 text-xs uppercase mb-1">Utilidad Neta</h3><p class="text-4xl font-black text-white" id="gananciaNeta">$0</p></div>
@@ -272,8 +262,8 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Prenda</label>
-                            <select id="wspPrenda" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600">
-                                <option value="Polerón">Polerón</option><option value="Pantalón">Pantalón</option><option value="Polera">Polera</option><option value="Short">Short</option>
+                            <select id="wspPrenda" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600" onchange="actualizarCierreWsp()">
+                                <option value="Polerón">Polerón</option><option value="Conjunto">Conjunto</option><option value="Pantalón">Pantalón</option><option value="Polera">Polera</option><option value="Short">Short</option>
                             </select>
                         </div>
                         <div>
@@ -287,7 +277,7 @@
                                 <option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="divWspCierre">
                             <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Cierre</label>
                             <select id="wspCierre" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600">
                                 <option value="No">No</option><option value="Sí">Sí</option>
@@ -418,6 +408,17 @@
         }
 
         // ================= DASHBOARD & HISTORIAL =================
+        function actualizarCierreWsp() {
+            const v = document.getElementById('wspPrenda').value.toLowerCase();
+            const d = document.getElementById('divWspCierre');
+            if (v.includes('pantalón') || v.includes('pantalon') || v.includes('conjunto')) {
+                d.style.display = 'none';
+                document.getElementById('wspCierre').value = 'No';
+            } else {
+                d.style.display = 'block';
+            }
+        }
+
         function enviarWspTaller(e) {
             e.preventDefault();
             const prenda = document.getElementById('wspPrenda').value;
@@ -430,7 +431,9 @@
             mensaje += `👕 *Prenda:* ${prenda}\n`;
             mensaje += `🎨 *Color:* ${color}\n`;
             mensaje += `📏 *Talla:* ${talla}\n`;
-            mensaje += `🤐 *Cierre:* ${cierre}\n`;
+            if (document.getElementById('divWspCierre').style.display !== 'none') {
+                mensaje += `🤐 *Cierre:* ${cierre}\n`;
+            }
             if (detalles) mensaje += `✨ *Bordado/Detalles:*\n${detalles}\n`;
 
             const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
@@ -443,17 +446,6 @@
             document.getElementById('totalIngresos').innerText = formatearMoneda(i);
             document.getElementById('totalGastos').innerText = formatearMoneda(g);
             document.getElementById('gananciaNeta').innerText = formatearMoneda(i - g);
-
-            const btnCaja = document.getElementById('btnEstadoCaja');
-            if(appData.caja.estado === 'cerrada') {
-                btnCaja.innerHTML = '<i class="fa-solid fa-lock-open mr-2"></i> Iniciar Turno (Caja)';
-                btnCaja.className = 'w-full py-3 bg-success hover:bg-emerald-400 text-slate-900 font-black rounded-xl shadow-neon-success transition uppercase text-sm';
-                btnCaja.onclick = abrirModalApertura;
-            } else {
-                btnCaja.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Cerrar Caja (Cuadre)';
-                btnCaja.className = 'w-full py-3 bg-danger hover:bg-rose-400 text-white font-black rounded-xl shadow-neon-danger transition uppercase text-sm';
-                btnCaja.onclick = abrirModalCierre;
-            }
 
             renderizarHistorial(); renderizarInventario(); renderizarMateriales(); renderizarPedidos();
         }
@@ -626,11 +618,17 @@
 
         function exportarExcel() {
             let csv = "Fecha,Folio,Tipo,Detalle,Metodo,Monto\n";
+            let tIngreso = 0; let tGasto = 0;
             appData.transacciones.forEach(t => {
                 const f = t.fecha ? t.fecha.split('T')[0] : '';
-                const m = t.tipo === 'ingreso' ? t.monto : -t.monto;
+                let m = 0;
+                if(t.tipo === 'ingreso') { m = t.monto; tIngreso += m; } else { m = -t.monto; tGasto += t.monto; }
                 csv += `${f},${t.folio||''},${t.tipo},"${t.descripcion}",${t.metodoPago||''},${m}\n`;
             });
+            csv += `\n,,,TOTAL INGRESOS,,${tIngreso}\n`;
+            csv += `,,,TOTAL GASTOS,,${tGasto}\n`;
+            csv += `,,,UTILIDAD NETA,,${tIngreso - tGasto}\n`;
+
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.setAttribute("href", URL.createObjectURL(blob));
