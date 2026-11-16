@@ -1742,7 +1742,12 @@
                     <div>
                         <div class="flex justify-between items-start gap-2">
                             <h3 class="font-bold text-white text-sm truncate">${escHtml(c.nombre)}</h3>
-                            <span class="text-[10px] px-2 py-0.5 rounded-md border border-line text-muted font-mono">${c.compras} ${c.compras === 1 ? 'compra' : 'compras'}</span>
+                            <div class="flex items-center space-x-1.5 shrink-0">
+                                <span class="text-[10px] px-2 py-0.5 rounded-md border border-line text-muted font-mono">${c.compras} ${c.compras === 1 ? 'compra' : 'compras'}</span>
+                                <button onclick="eliminarCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="text-muted hover:text-neg p-1 transition" title="Eliminar cliente">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            </div>
                         </div>
                         ${c.contacto ? `<p class="text-[11px] text-neutral-400 mt-1">${escHtml(c.contacto)}</p>` : ''}
                         ${c.notas ? `<p class="text-[11px] text-muted mt-1 italic">"${escHtml(c.notas)}"</p>` : ''}
@@ -1800,6 +1805,27 @@
             actualizarTodo();
             modalCaja(false);
             showToast("Ficha de cliente guardada");
+        }
+
+        function eliminarCliente(nombre) {
+            showConfirm('Eliminar Cliente', `Se borrará "${nombre}" del directorio y sus ventas asociadas (devolviendo el stock al inventario).`, 'Eliminar', 'bg-red-600 text-white', () => {
+                const key = (nombre || '').trim().toLowerCase();
+                const idsVentas = [];
+                appData.transacciones.forEach(t => {
+                    if (t.esVenta && (t.cliente || 'Sin nombre').trim().toLowerCase() === key) {
+                        idsVentas.push(t.id);
+                        if (t.prodId) {
+                            const p = appData.productos.find(x => x.id === t.prodId);
+                            if (p) p.stock += (t.cant || 1);
+                        }
+                    }
+                });
+                appData.transacciones = appData.transacciones.filter(t => !idsVentas.includes(t.id) && !(t.esPagoDeuda && idsVentas.includes(t.ventaOriginalId)));
+                appData.clientes = (appData.clientes || []).filter(c => (c.nombre || '').trim().toLowerCase() !== key);
+                guardarDatos();
+                actualizarTodo();
+                showToast("Cliente eliminado");
+            });
         }
 
         function ventaRapidaCliente(nombre) {
