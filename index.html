@@ -194,6 +194,17 @@
 
             <!-- ================= TAB: RESUMEN ================= -->
             <div id="inicio" class="tab-content active space-y-6">
+                <!-- Filtro por Cliente / Pedido -->
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 card-min px-4 py-3 rounded-2xl">
+                    <div class="flex items-center space-x-2 text-xs">
+                        <span class="text-muted uppercase tracking-wider font-semibold">Ver utilidad de:</span>
+                        <select id="filtroResumenCliente" onchange="actualizarDashboard()" class="rounded-xl px-3 py-1.5 text-xs font-semibold">
+                            <option value="">Todo el negocio (Global)</option>
+                        </select>
+                    </div>
+                    <span id="resumenVistaBadge" class="text-[11px] text-muted">Mostrando totales globales</span>
+                </div>
+
                 <!-- KPIs Principales -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="card-min p-5 rounded-2xl">
@@ -402,14 +413,20 @@
                                 <input type="number" id="compraMatTotal" class="w-full rounded-xl p-3 font-mono font-bold text-neg text-sm" required>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Método de Pago</label>
-                            <select id="compraMatMetodo" class="w-full rounded-xl p-3 text-sm">
-                                <option value="transferencia">Transferencia</option>
-                                <option value="efectivo">Efectivo</option>
-                                <option value="debito">Débito</option>
-                                <option value="credito">Crédito</option>
-                            </select>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Método de Pago</label>
+                                <select id="compraMatMetodo" class="w-full rounded-xl p-3 text-sm">
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="efectivo">Efectivo</option>
+                                    <option value="debito">Débito</option>
+                                    <option value="credito">Crédito</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Para Cliente / Pedido (Opcional)</label>
+                                <input type="text" id="compraMatCliente" list="listaClientesSug" placeholder="Ej: Vicente" class="w-full rounded-xl p-3 text-sm">
+                            </div>
                         </div>
                         <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
                             Registrar Compra de Insumo
@@ -445,6 +462,10 @@
                                 </select>
                             </div>
                         </div>
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Para Cliente / Pedido (Opcional)</label>
+                            <input type="text" id="confeccionCliente" list="listaClientesSug" placeholder="Ej: Vicente" class="w-full rounded-xl p-3 text-sm">
+                        </div>
                         <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
                             Registrar Pago y Sumar Stock
                         </button>
@@ -470,6 +491,10 @@
                                     <option value="credito">Crédito</option>
                                 </select>
                             </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Para Cliente / Pedido (Opcional)</label>
+                            <input type="text" id="gastoCliente" list="listaClientesSug" placeholder="Ej: Vicente" class="w-full rounded-xl p-3 text-sm">
                         </div>
                         <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
                             Registrar Gasto
@@ -912,10 +937,42 @@
         }
 
         // ================= DASHBOARD & CÁLCULOS =================
+        function actualizarSelectResumenCliente() {
+            const sel = document.getElementById('filtroResumenCliente');
+            if (!sel) return;
+            const prev = sel.value;
+            const nombres = new Set();
+            (appData.clientes || []).forEach(c => { if (c.nombre) nombres.add(c.nombre.trim()); });
+            appData.transacciones.forEach(t => { if (t.cliente) nombres.add(t.cliente.trim()); });
+            sel.innerHTML = '<option value="">Todo el negocio (Global)</option>';
+            [...nombres].sort().forEach(n => {
+                sel.innerHTML += `<option value="${escHtml(n)}">${escHtml(n)}</option>`;
+            });
+            if ([...nombres].includes(prev)) sel.value = prev;
+        }
+
+        function transaccionEsDeCliente(t, cliLower) {
+            if (!cliLower) return true;
+            if ((t.cliente || '').trim().toLowerCase() === cliLower) return true;
+            if ((t.descripcion || '').toLowerCase().includes(cliLower)) return true;
+            return false;
+        }
+
         function actualizarDashboard() {
-            const ingresos = appData.transacciones.filter(t => t.tipo === 'ingreso').reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
-            const gastos = appData.transacciones.filter(t => t.tipo === 'gasto').reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
-            const porCobrar = appData.transacciones.filter(t => t.esVenta && (parseFloat(t.deuda) || 0) > 0).reduce((a, b) => a + (parseFloat(b.deuda) || 0), 0);
+            actualizarSelectResumenCliente();
+            const cliFiltro = (document.getElementById('filtroResumenCliente')?.value || '').trim();
+            const cliLower = cliFiltro.toLowerCase();
+            const badge = document.getElementById('resumenVistaBadge');
+            if (badge) {
+                badge.innerText = cliFiltro ? `Filtrado por: ${cliFiltro} (sin borrar otros datos)` : 'Mostrando totales globales';
+                badge.className = cliFiltro ? 'text-[11px] text-warn font-semibold' : 'text-[11px] text-muted';
+            }
+
+            const transBase = cliFiltro ? appData.transacciones.filter(t => transaccionEsDeCliente(t, cliLower)) : appData.transacciones;
+
+            const ingresos = transBase.filter(t => t.tipo === 'ingreso').reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+            const gastos = transBase.filter(t => t.tipo === 'gasto').reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+            const porCobrar = transBase.filter(t => t.esVenta && (parseFloat(t.deuda) || 0) > 0).reduce((a, b) => a + (parseFloat(b.deuda) || 0), 0);
             const neta = ingresos - gastos;
 
             document.getElementById('totalIngresos').innerText = formatearMoneda(ingresos);
@@ -935,8 +992,8 @@
             const contMet = document.getElementById('desgloseMetodos');
             contMet.innerHTML = '';
             metodos.forEach(m => {
-                const ent = appData.transacciones.filter(t => t.tipo === 'ingreso' && t.metodoPago === m.key).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
-                const sal = appData.transacciones.filter(t => t.tipo === 'gasto' && t.metodoPago === m.key).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+                const ent = transBase.filter(t => t.tipo === 'ingreso' && t.metodoPago === m.key).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+                const sal = transBase.filter(t => t.tipo === 'gasto' && t.metodoPago === m.key).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
                 const bal = ent - sal;
                 contMet.innerHTML += `
                     <div class="p-3 rounded-xl bg-void border border-line">
@@ -947,7 +1004,7 @@
 
             // Ventas por Línea: Ropa vs Relojes
             let sumRopa = 0, cntRopa = 0, sumRel = 0, cntRel = 0;
-            appData.transacciones.filter(t => t.esVenta).forEach(v => {
+            transBase.filter(t => t.esVenta).forEach(v => {
                 const cat = detectarCategoria(v.descripcion, v.categoria);
                 const m = parseFloat(v.monto) || 0;
                 if (cat === 'relojes') { sumRel += m; cntRel++; }
@@ -967,9 +1024,11 @@
         function renderizarHistorial() {
             const tbody = document.getElementById('listaHistorial');
             const filtro = (document.getElementById('filtroHistorial')?.value || '').toLowerCase().trim();
+            const cliFiltro = (document.getElementById('filtroResumenCliente')?.value || '').trim().toLowerCase();
             tbody.innerHTML = '';
 
             let lista = [...appData.transacciones].reverse();
+            if (cliFiltro) lista = lista.filter(t => transaccionEsDeCliente(t, cliFiltro));
             if (filtro) {
                 lista = lista.filter(t =>
                     (t.descripcion || '').toLowerCase().includes(filtro) ||
@@ -1016,7 +1075,7 @@
                 if (t.esConfeccion && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if (p) p.stock = Math.max(0, p.stock - (t.cant || 0)); }
                 if (t.esPagoDeuda && t.ventaOriginalId) {
                     const og = appData.transacciones.find(v => v.id === t.ventaOriginalId);
-                    if (og) { og.deuda += t.monto; og.monto -= t.monto; og.estadoPago = 'abono'; }
+                    if (og) { og.deuda = (parseFloat(og.deuda) || 0) + (parseFloat(t.monto) || 0); og.estadoPago = 'abono'; }
                 }
                 appData.transacciones.splice(ix, 1);
                 guardarDatos();
@@ -1124,13 +1183,14 @@
             const mat = appData.materiales.find(m => m.id === document.getElementById('compraMaterialSelect').value);
             if (!mat) return showToast("Selecciona un insumo", "danger");
             const cant = parseFloat(document.getElementById('compraMatCant').value) || 0;
+            const cli = (document.getElementById('compraMatCliente')?.value || '').trim();
             mat.stock += cant;
             appData.transacciones.push({
                 id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(),
-                descripcion: `Insumo: ${cant} ${mat.unidad} de ${mat.nombre}`,
+                descripcion: `Insumo: ${cant} ${mat.unidad} de ${mat.nombre}${cli ? ` (${cli})` : ''}`,
                 monto: parseFloat(document.getElementById('compraMatTotal').value) || 0,
                 metodoPago: document.getElementById('compraMatMetodo').value,
-                esCompraMaterial: true, matId: mat.id, cant: cant
+                esCompraMaterial: true, matId: mat.id, cant: cant, cliente: cli || null
             });
             guardarDatos();
             actualizarTodo();
@@ -1148,13 +1208,14 @@
             const prod = appData.productos.find(p => p.id === document.getElementById('confeccionProducto').value);
             if (!prod) return showToast("Selecciona una prenda", "danger");
             const cant = parseInt(document.getElementById('confeccionCant').value) || 0;
+            const cli = (document.getElementById('confeccionCliente')?.value || '').trim();
             prod.stock += cant;
             appData.transacciones.push({
                 id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(),
-                descripcion: `Confección: ${cant}x ${prod.nombre}`,
+                descripcion: `Confección: ${cant}x ${prod.nombre}${cli ? ` (${cli})` : ''}`,
                 monto: parseFloat(document.getElementById('confeccionTotal').value) || 0,
                 metodoPago: document.getElementById('confeccionMetodo').value,
-                esConfeccion: true, prodId: prod.id, cant: cant
+                esConfeccion: true, prodId: prod.id, cant: cant, cliente: cli || null
             });
             guardarDatos();
             actualizarTodo();
@@ -1164,11 +1225,14 @@
 
         function registrarGasto(e) {
             e.preventDefault();
+            const cli = (document.getElementById('gastoCliente')?.value || '').trim();
+            const desc = document.getElementById('gastoDescripcion').value.trim();
             appData.transacciones.push({
                 id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(),
-                descripcion: document.getElementById('gastoDescripcion').value.trim(),
+                descripcion: `${desc}${cli ? ` (${cli})` : ''}`,
                 monto: parseFloat(document.getElementById('gastoMonto').value) || 0,
-                metodoPago: document.getElementById('gastoMetodo').value
+                metodoPago: document.getElementById('gastoMetodo').value,
+                cliente: cli || null
             });
             guardarDatos();
             actualizarTodo();
@@ -1269,9 +1333,8 @@
                 appData.transacciones.push({
                     id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(),
                     descripcion: `${esTotal ? 'Saldo' : 'Abono'} ${v.folio || ''} (${v.cliente})`,
-                    monto: aplicado, metodoPago: met, esPagoDeuda: true, ventaOriginalId: v.id
+                    monto: aplicado, metodoPago: met, esPagoDeuda: true, ventaOriginalId: v.id, cliente: v.cliente
                 });
-                v.monto = (parseFloat(v.monto) || 0) + aplicado;
                 v.deuda = Math.max(0, (parseFloat(v.deuda) || 0) - aplicado);
                 v.estadoPago = v.deuda <= 0 ? 'completo' : 'abono';
                 guardarDatos();
@@ -1695,15 +1758,17 @@
                 const k = (c.nombre || '').trim().toLowerCase();
                 if (k) mapa[k] = { nombre: c.nombre, contacto: c.contacto || '', notas: c.notas || '', compras: 0, totalGastado: 0, deuda: 0, ultimaFecha: null, ultimoDetalle: '' };
             });
-            appData.transacciones.filter(t => t.esVenta).forEach(v => {
+            appData.transacciones.filter(t => t.esVenta || t.esPagoDeuda).forEach(v => {
                 const raw = (v.cliente || 'Sin nombre').trim();
                 const k = raw.toLowerCase();
                 if (!mapa[k]) {
                     mapa[k] = { nombre: raw, contacto: '', notas: '', compras: 0, totalGastado: 0, deuda: 0, ultimaFecha: null, ultimoDetalle: '' };
                 }
-                mapa[k].compras += 1;
+                if (v.esVenta) {
+                    mapa[k].compras += 1;
+                    mapa[k].deuda += (parseFloat(v.deuda) || 0);
+                }
                 mapa[k].totalGastado += (parseFloat(v.monto) || 0);
-                mapa[k].deuda += (parseFloat(v.deuda) || 0);
                 if (!mapa[k].ultimaFecha || v.fecha > mapa[k].ultimaFecha) {
                     mapa[k].ultimaFecha = v.fecha;
                     mapa[k].ultimoDetalle = v.descripcion || '';
@@ -1761,6 +1826,7 @@
                         </div>
                         <div class="flex flex-wrap gap-1.5">
                             ${c.deuda > 0 ? `<button onclick="recordarCobroWsp('${escHtml(c.nombre).replace(/'/g, "\\'")}', ${c.deuda}, '${escHtml(c.ultimoDetalle).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-warn/40 text-warn hover:bg-warn hover:text-black text-[11px] font-semibold transition">Cobrar</button>` : ''}
+                            <button onclick="verUtilidadCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-line hover:border-white text-white text-[11px] transition">Utilidad</button>
                             <button onclick="abrirCargoCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-line hover:border-white text-white text-[11px] transition">+ Cargo</button>
                             <button onclick="abrirEditarCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-line hover:border-white text-muted hover:text-white text-[11px] transition">Notas</button>
                             <button onclick="ventaRapidaCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-white text-black font-bold text-[11px] hover:bg-neutral-200 transition">+ Venta</button>
@@ -1826,6 +1892,15 @@
                 actualizarTodo();
                 showToast("Cliente eliminado");
             });
+        }
+
+        function verUtilidadCliente(nombre) {
+            showTab('inicio');
+            const sel = document.getElementById('filtroResumenCliente');
+            if (sel) {
+                sel.value = nombre;
+                actualizarDashboard();
+            }
         }
 
         function ventaRapidaCliente(nombre) {
