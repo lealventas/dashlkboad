@@ -337,19 +337,24 @@
                             <datalist id="listaClientesSug"></datalist>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
                             <div class="sm:col-span-2">
                                 <div class="flex justify-between items-center mb-1.5">
-                                    <label class="block text-[11px] uppercase tracking-wider text-muted font-semibold">Prenda</label>
+                                    <label class="block text-[11px] uppercase tracking-wider text-muted font-semibold">Prenda / Reloj</label>
                                     <span id="ventaStockInfo" class="text-[11px] font-mono text-muted"></span>
                                 </div>
-                                <select id="ventaProducto" class="w-full rounded-xl p-3 text-sm" required onchange="actualizarPrecioVenta()"></select>
+                                <select id="ventaProducto" class="w-full rounded-xl p-3 text-sm" onchange="actualizarPrecioVenta()"></select>
                             </div>
                             <div>
                                 <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Cantidad</label>
-                                <input type="number" id="ventaCantidad" value="1" min="1" class="w-full rounded-xl p-3 text-center font-mono font-bold text-sm" required oninput="calcularTotalVenta()">
+                                <input type="number" id="ventaCantidad" value="1" min="1" class="w-full rounded-xl p-3 text-center font-mono font-bold text-sm" oninput="calcularTotalVenta()">
+                            </div>
+                            <div>
+                                <button type="button" onclick="agregarAlCarritoVenta()" class="w-full border border-line hover:border-white text-white font-semibold py-3 rounded-xl text-xs transition">+ Agregar</button>
                             </div>
                         </div>
+
+                        <div id="listaCarritoVenta" class="hidden space-y-1.5 p-3 rounded-xl bg-void border border-line"></div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-line">
                             <div>
@@ -1070,7 +1075,11 @@
             if (ix === -1) return;
             const t = appData.transacciones[ix];
             showConfirm('Eliminar Movimiento', 'Se revertirá el stock asociado si corresponde.', 'Eliminar', 'bg-red-600 text-white', () => {
-                if (t.esVenta && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if (p) p.stock += (t.cant || 1); }
+                if (t.esVenta && Array.isArray(t.items)) {
+                    t.items.forEach(it => { const p = appData.productos.find(x => x.id === it.prodId); if (p) p.stock += (it.cant || 1); });
+                } else if (t.esVenta && t.prodId) {
+                    const p = appData.productos.find(x => x.id === t.prodId); if (p) p.stock += (t.cant || 1);
+                }
                 if (t.esCompraMaterial && t.matId) { const m = appData.materiales.find(x => x.id === t.matId); if (m) m.stock = Math.max(0, m.stock - (t.cant || 0)); }
                 if (t.esConfeccion && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if (p) p.stock = Math.max(0, p.stock - (t.cant || 0)); }
                 if (t.esPagoDeuda && t.ventaOriginalId) {
@@ -1108,31 +1117,103 @@
             document.getElementById('divMetodoPago').classList.toggle('hidden', p === 'pendiente');
         }
 
+        let carritoVenta = [];
+
+        function agregarAlCarritoVenta() {
+            const prodId = document.getElementById('ventaProducto').value;
+            const prod = appData.productos.find(p => p.id === prodId);
+            if (!prod) return showToast("Selecciona una prenda o reloj primero", "danger");
+            const cant = parseInt(document.getElementById('ventaCantidad').value) || 0;
+            if (cant <= 0) return showToast("Cantidad inválida", "danger");
+
+            const yaEnCarrito = carritoVenta.filter(x => x.prodId === prodId).reduce((a, b) => a + b.cant, 0);
+            if (prod.stock < cant + yaEnCarrito) return showToast(`Stock insuficiente (${prod.stock} disp.)`, "danger");
+
+            const dcto = Math.min(100, Math.max(0, parseFloat(document.getElementById('ventaDescuento').value) || 0));
+            const unitFinal = Math.round((parseFloat(prod.precio) || 0) * (1 - dcto / 100));
+            const subtotal = unitFinal * cant;
+
+            carritoVenta.push({ prodId: prod.id, nombre: prod.nombre, cant, subtotal, categoria: detectarCategoria(`${prod.nombre} ${prod.talla}`, prod.categoria) });
+            document.getElementById('ventaProducto').value = '';
+            document.getElementById('ventaCantidad').value = 1;
+            document.getElementById('ventaDescuento').value = 0;
+            document.getElementById('ventaStockInfo').innerText = '';
+            renderizarCarritoVenta();
+            showToast(`Agregado: ${cant}x ${prod.nombre}`);
+        }
+
+        function quitarDelCarritoVenta(idx) {
+            carritoVenta.splice(idx, 1);
+            renderizarCarritoVenta();
+        }
+
+        function renderizarCarritoVenta() {
+            const box = document.getElementById('listaCarritoVenta');
+            if (!box) return;
+            if (carritoVenta.length === 0) {
+                box.classList.add('hidden');
+                box.innerHTML = '';
+                return;
+            }
+            box.classList.remove('hidden');
+            let suma = 0;
+            box.innerHTML = '<div class="text-[10px] uppercase tracking-wider text-muted mb-1">Productos en este pedido:</div>';
+            carritoVenta.forEach((it, idx) => {
+                suma += it.subtotal;
+                box.innerHTML += `
+                    <div class="flex justify-between items-center text-xs py-1 border-b border-line/50 last:border-0">
+                        <span class="text-white">${it.cant}x ${escHtml(it.nombre)}</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-mono text-pos">${formatearMoneda(it.subtotal)}</span>
+                            <button type="button" onclick="quitarDelCarritoVenta(${idx})" class="text-muted hover:text-neg px-1">✕</button>
+                        </div>
+                    </div>`;
+            });
+            document.getElementById('ventaTotal').value = suma;
+        }
+
         function actualizarPrecioVenta(desdeProducto = true) {
             const s = document.getElementById('ventaProducto');
             const info = document.getElementById('ventaStockInfo');
             const dctoInput = document.getElementById('ventaDescuento');
+            const sumaCarrito = carritoVenta.reduce((a, b) => a + b.subtotal, 0);
             if (s.selectedIndex > 0) {
                 const opt = s.options[s.selectedIndex];
                 if (desdeProducto) dctoInput.value = opt.dataset.descuento || 0;
                 const cant = parseInt(document.getElementById('ventaCantidad').value) || 1;
                 const base = parseFloat(opt.dataset.precio) || 0;
                 const dcto = Math.min(100, Math.max(0, parseFloat(dctoInput.value) || 0));
-                document.getElementById('ventaTotal').value = Math.round(base * (1 - dcto / 100) * cant);
+                document.getElementById('ventaTotal').value = sumaCarrito + Math.round(base * (1 - dcto / 100) * cant);
                 info.innerText = `Stock: ${opt.dataset.stock}`;
             } else {
                 info.innerText = '';
+                if (carritoVenta.length > 0) document.getElementById('ventaTotal').value = sumaCarrito;
             }
         }
         function calcularTotalVenta() { actualizarPrecioVenta(false); }
 
         function registrarVenta(e) {
             e.preventDefault();
-            const prod = appData.productos.find(p => p.id === document.getElementById('ventaProducto').value);
-            if (!prod) return showToast("Selecciona una prenda", "danger");
-            const cant = parseInt(document.getElementById('ventaCantidad').value) || 0;
-            if (cant <= 0) return showToast("Cantidad inválida", "danger");
-            if (prod.stock < cant) return showToast(`Stock insuficiente (${prod.stock} disp.)`, "danger");
+            let items = [...carritoVenta];
+            const prodSelId = document.getElementById('ventaProducto').value;
+            if (prodSelId) {
+                const prod = appData.productos.find(p => p.id === prodSelId);
+                const cant = parseInt(document.getElementById('ventaCantidad').value) || 0;
+                if (prod && cant > 0) {
+                    const dcto = Math.min(100, Math.max(0, parseFloat(document.getElementById('ventaDescuento').value) || 0));
+                    const sub = Math.round((parseFloat(prod.precio) || 0) * (1 - dcto / 100) * cant);
+                    items.push({ prodId: prod.id, nombre: prod.nombre, cant, subtotal: sub, categoria: detectarCategoria(`${prod.nombre} ${prod.talla}`, prod.categoria) });
+                }
+            }
+            if (items.length === 0) return showToast("Selecciona al menos una prenda", "danger");
+
+            // Validar stock acumulado por producto
+            const reqPorProd = {};
+            for (const it of items) reqPorProd[it.prodId] = (reqPorProd[it.prodId] || 0) + it.cant;
+            for (const [pid, reqCant] of Object.entries(reqPorProd)) {
+                const p = appData.productos.find(x => x.id === pid);
+                if (!p || p.stock < reqCant) return showToast(`Stock insuficiente de ${p ? p.nombre : 'producto'}`, "danger");
+            }
 
             const tot = parseFloat(document.getElementById('ventaTotal').value) || 0;
             const cl = document.getElementById('ventaCliente').value.trim() || 'Cliente';
@@ -1148,17 +1229,28 @@
                 d = Math.max(0, tot - mReal);
             }
 
-            prod.stock -= cant;
+            items.forEach(it => {
+                const p = appData.productos.find(x => x.id === it.prodId);
+                if (p) p.stock -= it.cant;
+            });
+
+            const resumenItems = items.map(it => `${it.cant}x ${it.nombre}`).join(' + ');
             appData.transacciones.push({
                 id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(),
-                descripcion: `${cant}x ${prod.nombre} (${cl})`,
+                descripcion: `${resumenItems} (${cl})`,
                 monto: mReal, deuda: d,
                 estadoEntrega: document.getElementById('ventaEntrega').value,
                 estadoPago: (pago === 'abono' && d <= 0) ? 'completo' : pago,
                 metodoPago: pago === 'pendiente' ? null : met,
-                esVenta: true, prodId: prod.id, cant: cant, cliente: cl
+                esVenta: true,
+                items: items,
+                prodId: items[0].prodId,
+                cant: items.reduce((a, b) => a + b.cant, 0),
+                cliente: cl
             });
 
+            carritoVenta = [];
+            renderizarCarritoVenta();
             guardarDatos();
             actualizarTodo();
             e.target.reset();
