@@ -1235,36 +1235,49 @@
 
         function mCobro(id, deuda) {
             const h = `
-                <label class="block text-xs text-muted mb-2">Método de pago de los <strong class="text-white">${formatearMoneda(deuda)}</strong>:</label>
-                <select id="cobroMetodo" class="w-full p-3 rounded-xl mb-5 text-sm">
-                    <option value="transferencia">Transferencia</option>
-                    <option value="efectivo">Efectivo</option>
-                    <option value="debito">Débito</option>
-                    <option value="credito">Crédito</option>
-                </select>
+                <div class="space-y-4 mb-5">
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Monto que paga hoy ($) — Deuda actual: <strong class="text-white">${formatearMoneda(deuda)}</strong></label>
+                        <input type="number" id="cobroMonto" min="1" max="${deuda}" value="${deuda}" class="w-full p-3 rounded-xl font-mono font-bold text-pos text-sm">
+                        <p class="text-[10px] text-muted mt-1">Si paga menos del total, quedará registrado como <b>Abono</b> y seguirá el saldo pendiente.</p>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Método de pago</label>
+                        <select id="cobroMetodo" class="w-full p-3 rounded-xl text-sm">
+                            <option value="transferencia">Transferencia</option>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="flex justify-end space-x-3">
                     <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
-                    <button onclick="execCobro('${id}')" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Confirmar Cobro</button>
+                    <button onclick="execCobro('${id}')" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Registrar Pago</button>
                 </div>`;
-            modalCaja(true, h, 'Saldar Deuda');
+            modalCaja(true, h, 'Registrar Abono / Cobro');
         }
 
         function execCobro(id) {
             const v = appData.transacciones.find(t => t.id === id);
             const met = document.getElementById('cobroMetodo').value;
+            const pagoHoy = parseFloat(document.getElementById('cobroMonto').value) || 0;
             if (v && (v.deuda || 0) > 0) {
+                if (pagoHoy <= 0) return showToast("Ingresa un monto mayor a 0", "danger");
+                const aplicado = Math.min(pagoHoy, v.deuda);
+                const esTotal = aplicado >= v.deuda;
                 appData.transacciones.push({
                     id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(),
-                    descripcion: `Saldo ${v.folio || ''} (${v.cliente})`,
-                    monto: v.deuda, metodoPago: met, esPagoDeuda: true, ventaOriginalId: v.id
+                    descripcion: `${esTotal ? 'Saldo' : 'Abono'} ${v.folio || ''} (${v.cliente})`,
+                    monto: aplicado, metodoPago: met, esPagoDeuda: true, ventaOriginalId: v.id
                 });
-                v.estadoPago = 'completo';
-                v.monto = (parseFloat(v.monto) || 0) + v.deuda;
-                v.deuda = 0;
+                v.monto = (parseFloat(v.monto) || 0) + aplicado;
+                v.deuda = Math.max(0, (parseFloat(v.deuda) || 0) - aplicado);
+                v.estadoPago = v.deuda <= 0 ? 'completo' : 'abono';
                 guardarDatos();
                 actualizarTodo();
                 modalCaja(false);
-                showToast("Saldo cobrado");
+                showToast(v.deuda <= 0 ? "Deuda saldada" : `Abono registrado (resta ${formatearMoneda(v.deuda)})`);
             }
         }
 
@@ -1741,8 +1754,9 @@
                             <span class="font-mono font-bold text-pos">${formatearMoneda(c.totalGastado)}</span>
                             ${c.deuda > 0 ? `<span class="ml-1.5 text-[10px] font-mono text-warn">(Debe ${formatearMoneda(c.deuda)})</span>` : ''}
                         </div>
-                        <div class="flex space-x-1.5">
+                        <div class="flex flex-wrap gap-1.5">
                             ${c.deuda > 0 ? `<button onclick="recordarCobroWsp('${escHtml(c.nombre).replace(/'/g, "\\'")}', ${c.deuda}, '${escHtml(c.ultimoDetalle).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-warn/40 text-warn hover:bg-warn hover:text-black text-[11px] font-semibold transition">Cobrar</button>` : ''}
+                            <button onclick="abrirCargoCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-line hover:border-white text-white text-[11px] transition">+ Cargo</button>
                             <button onclick="abrirEditarCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-line hover:border-white text-muted hover:text-white text-[11px] transition">Notas</button>
                             <button onclick="ventaRapidaCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-white text-black font-bold text-[11px] hover:bg-neutral-200 transition">+ Venta</button>
                         </div>
@@ -1793,6 +1807,76 @@
             seleccionarTipoPOS('venta');
             document.getElementById('ventaCliente').value = nombre;
             document.getElementById('ventaProducto').focus();
+        }
+
+        function abrirCargoCliente(nombre) {
+            const h = `
+                <div class="space-y-3 mb-5">
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Qué compró / Concepto</label>
+                        <input type="text" id="cargoDesc" class="w-full p-2.5 rounded-xl text-sm" placeholder="Ej: Envío, polerón extra, bordado...">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] uppercase text-muted mb-1">Total ($)</label>
+                            <input type="number" id="cargoTotal" min="1" class="w-full p-2.5 rounded-xl text-sm font-mono font-bold text-pos" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] uppercase text-muted mb-1">Estado Pago</label>
+                            <select id="cargoPago" class="w-full p-2.5 rounded-xl text-sm" onchange="document.getElementById('divCargoAbono').classList.toggle('hidden', this.value !== 'abono')">
+                                <option value="completo">Pagado</option>
+                                <option value="abono">Abono</option>
+                                <option value="pendiente">Por Cobrar</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="divCargoAbono" class="hidden">
+                        <label class="block text-[11px] uppercase text-warn mb-1">¿Cuánto abonó hoy? ($)</label>
+                        <input type="number" id="cargoAbono" min="0" class="w-full p-2.5 rounded-xl text-sm font-mono text-warn" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Método de Pago</label>
+                        <select id="cargoMetodo" class="w-full p-2.5 rounded-xl text-sm">
+                            <option value="transferencia">Transferencia</option>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="debito">Débito</option>
+                            <option value="credito">Crédito</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
+                    <button onclick="guardarCargoCliente('${escHtml(nombre).replace(/'/g, "\\'")}')" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Agregar a ${escHtml(nombre)}</button>
+                </div>`;
+            modalCaja(true, h, `Agregar compra a ${nombre}`);
+        }
+
+        function guardarCargoCliente(nombre) {
+            const desc = document.getElementById('cargoDesc').value.trim() || 'Compra adicional';
+            const tot = parseFloat(document.getElementById('cargoTotal').value) || 0;
+            if (tot <= 0) return showToast("Ingresa un monto válido", "danger");
+            const pago = document.getElementById('cargoPago').value;
+            const met = document.getElementById('cargoMetodo').value;
+            let mReal = 0, d = 0;
+            if (pago === 'completo') mReal = tot;
+            else if (pago === 'pendiente') d = tot;
+            else {
+                mReal = parseFloat(document.getElementById('cargoAbono').value) || 0;
+                if (mReal >= tot) mReal = tot;
+                d = Math.max(0, tot - mReal);
+            }
+            appData.transacciones.push({
+                id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(),
+                descripcion: `${desc} (${nombre})`,
+                monto: mReal, deuda: d, estadoEntrega: 'entregado',
+                estadoPago: (pago === 'abono' && d <= 0) ? 'completo' : pago,
+                metodoPago: pago === 'pendiente' ? null : met,
+                esVenta: true, cliente: nombre
+            });
+            guardarDatos();
+            actualizarTodo();
+            modalCaja(false);
+            showToast("Compra agregada al cliente");
         }
 
         function recordarCobroWsp(nombre, deuda, detalle) {
