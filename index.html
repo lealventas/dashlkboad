@@ -3,411 +3,1364 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYS PRO - ERP & POS</title>
+    <title>SYS PRO — Control de Marca</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: { dark: '#0B0F19', card: '#151C2C', cardhover: '#1E293B', primary: '#6366F1', accent: '#38BDF8', success: '#10B981', danger: '#F43F5E', bordercolor: '#1E293B' },
-                    boxShadow: { 'neon-primary': '0 0 15px rgba(99, 102, 241, 0.3)', 'neon-success': '0 0 15px rgba(16, 185, 129, 0.2)', 'neon-danger': '0 0 15px rgba(244, 63, 94, 0.2)' }
+                    colors: {
+                        void: '#000000',
+                        surface: '#0A0A0A',
+                        elevated: '#141414',
+                        line: '#222222',
+                        linehover: '#333333',
+                        muted: '#888888',
+                        ink: '#FFFFFF',
+                        pos: '#22C55E',
+                        neg: '#EF4444',
+                        warn: '#F59E0B'
+                    }
                 }
             }
         }
     </script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase V8 -->
+    <!-- Firebase V8 (App, Auth, Firestore) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0B0F19; color: #E2E8F0; overflow-x: hidden; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: #0B0F19; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; border: 2px solid #0B0F19; }
-        .tab-content { display: none; opacity: 0; transform: translateY(10px); }
-        .tab-content.active { display: block; opacity: 1; transform: translateY(0); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        .tab-btn { position: relative; color: #64748B; transition: all 0.3s ease; } .tab-btn:hover { color: #F8FAFC; }
-        .tab-btn.active { color: #38BDF8; font-weight: 600; }
-        .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background-color: #38BDF8; border-radius: 2px; box-shadow: 0 -2px 10px rgba(56, 189, 248, 0.6); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #000000; color: #FFFFFF; overflow-x: hidden; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #000000; }
+        ::-webkit-scrollbar-thumb { background: #262626; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #404040; }
         .hide-scroll::-webkit-scrollbar { display: none; }
-        input, select { background-color: #0F172A !important; color: #F8FAFC !important; border: 1px solid #334155 !important; transition: all 0.3s ease; }
-        input:focus, select:focus { border-color: #38BDF8 !important; outline: none; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important; }
-        input::placeholder { color: #475569 !important; }
-        input[type="radio"] { appearance: none; width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 2px solid #475569 !important; outline: none; transition: 0.2s; cursor: pointer; position: relative; }
-        input[type="radio"]:checked { border-color: currentColor !important; background-color: transparent !important; }
-        input[type="radio"]:checked::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 0.6rem; height: 0.6rem; border-radius: 50%; background-color: currentColor; }
-        .card-pro { background-color: #151C2C; border: 1px solid #1E293B; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        /* Blur background when register is closed */
-        .bloqueo-caja {
-            position: absolute; inset: 0; z-index: 50;
-            background: rgba(11, 15, 25, 0.8); backdrop-filter: blur(8px);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .tab-btn { position: relative; color: #737373; transition: color 0.2s ease; }
+        .tab-btn:hover { color: #FFFFFF; }
+        .tab-btn.active { color: #FFFFFF; font-weight: 600; }
+        .tab-btn.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background-color: #FFFFFF; }
+
+        input, select, textarea {
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #262626 !important;
+            transition: border-color 0.2s ease;
         }
+        input:focus, select:focus, textarea:focus {
+            border-color: #FFFFFF !important;
+            outline: none;
+        }
+        input::placeholder, textarea::placeholder { color: #525252 !important; }
+
+        .card-min { background-color: #0A0A0A; border: 1px solid #222222; }
+        .pill-active { background-color: #FFFFFF !important; color: #000000 !important; border-color: #FFFFFF !important; font-weight: 700; }
     </style>
 </head>
-<body class="pb-20 antialiased selection:bg-accent selection:text-dark text-sm md:text-base">
+<body class="min-h-screen pb-20 antialiased selection:bg-white selection:text-black text-sm">
 
-    <!-- Modal Genérico Confirmación -->
-    <div id="customDialog" class="fixed inset-0 z-[100] flex items-center justify-center hidden bg-black/70 backdrop-blur-sm transition-opacity duration-300 opacity-0">
-        <div id="dialogBox" class="bg-card border border-bordercolor rounded-2xl p-6 w-11/12 max-w-sm shadow-2xl transform scale-95 transition-transform duration-300 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-danger to-orange-500"></div>
-            <h3 id="dialogTitle" class="text-xl font-bold text-white mb-3 mt-1">Confirmar</h3>
-            <p id="dialogMessage" class="text-slate-400 mb-6 text-sm leading-relaxed">Mensaje</p>
-            <div class="flex justify-end space-x-3">
-                <button onclick="closeDialog()" class="px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-sm font-medium">Cancelar</button>
-                <button id="dialogConfirmBtn" class="px-5 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition font-medium shadow-neon-danger text-sm">Eliminar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modals de Caja y Ajuste -->
-    <div id="modalCaja" class="fixed inset-0 z-[110] flex items-center justify-center hidden bg-black/80 backdrop-blur-md transition-opacity duration-300 opacity-0">
-        <div id="boxCaja" class="bg-card border border-bordercolor rounded-2xl p-6 w-11/12 max-w-md shadow-2xl transform scale-95 transition-transform duration-300 relative">
-            <h3 id="tituloModalCaja" class="text-2xl font-black text-white mb-4">Apertura</h3>
-            <div id="cuerpoModalCaja"></div>
-        </div>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div id="toastContainer" class="fixed bottom-5 right-5 z-[90] flex flex-col space-y-3 pointer-events-none"></div>
-
-    <!-- Navbar -->
-    <nav class="sticky top-0 z-40 bg-dark/90 backdrop-blur-xl border-b border-bordercolor shadow-lg">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="bg-gradient-to-br from-primary to-accent p-1.5 rounded-lg shadow-neon-primary text-white flex items-center justify-center w-8 h-8">
-                    <i class="fa-solid fa-cloud text-sm"></i>
+    <!-- PANTALLA DE LOGIN (SEGURIDAD) -->
+    <div id="authGate" class="fixed inset-0 z-[200] bg-void flex items-center justify-center p-4">
+        <div class="w-full max-w-sm card-min rounded-2xl p-7 shadow-2xl">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 </div>
-                <h1 class="text-lg font-extrabold tracking-wider hidden sm:block">SYS<span class="text-accent">CLOUD</span></h1>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white">SYS PRO</h1>
+                    <p class="text-xs text-muted">Acceso privado a tu tienda</p>
+                </div>
             </div>
-            <div class="flex overflow-x-auto hide-scroll space-x-1 sm:space-x-4">
-                <button onclick="showTab('inicio')" id="tab-inicio" class="tab-btn active px-3 py-2 whitespace-nowrap"><i class="fa-solid fa-chart-pie mr-1"></i>Resumen</button>
-                <button onclick="showTab('registrar')" id="tab-registrar" class="tab-btn px-3 py-2 whitespace-nowrap"><i class="fa-solid fa-bolt mr-1 text-accent"></i>POS</button>
-                <button onclick="showTab('pedidos')" id="tab-pedidos" class="tab-btn px-3 py-2 whitespace-nowrap"><i class="fa-solid fa-box-open mr-1 text-orange-400"></i>Pedidos</button>
-                <button onclick="showTab('inventario')" id="tab-inventario" class="tab-btn px-3 py-2 whitespace-nowrap"><i class="fa-solid fa-boxes-stacked mr-1 text-purple-400"></i>Inventario</button>
-                <button onclick="showTab('taller')" id="tab-taller" class="tab-btn px-3 py-2 whitespace-nowrap"><i class="fa-brands fa-whatsapp mr-1 text-green-400"></i>A Taller</button>
-            </div>
-            <button onclick="confirmarResetTotal()" class="text-[10px] text-slate-500 hover:text-rose-400 px-2 py-1"><i class="fa-solid fa-power-off"></i></button>
-        </div>
-    </nav>
 
-    <div class="container mx-auto p-4 md:p-6 mt-2 max-w-7xl">
-        <div id="cloudStatus" class="mb-4 hidden text-xs font-bold flex items-center"></div>
+            <div id="authError" class="hidden mb-4 p-3 rounded-xl bg-red-950/50 border border-red-900 text-red-300 text-xs leading-relaxed"></div>
 
-        <!-- TAB: INICIO -->
-        <div id="inicio" class="tab-content active">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
-                <div class="card-pro p-5 rounded-2xl"><h3 class="text-slate-400 text-xs uppercase mb-1">Ingresos Globales</h3><p class="text-3xl font-bold text-success" id="totalIngresos">$0</p></div>
-                <div class="card-pro p-5 rounded-2xl"><h3 class="text-slate-400 text-xs uppercase mb-1">Gastos Globales</h3><p class="text-3xl font-bold text-danger" id="totalGastos">$0</p></div>
-                <div class="card-pro p-5 rounded-2xl"><h3 class="text-slate-400 text-xs uppercase mb-1">Utilidad Neta</h3><p class="text-4xl font-black text-white" id="gananciaNeta">$0</p></div>
-            </div>
-            
-            <div class="card-pro p-5 md:p-6 rounded-2xl">
-                <div class="flex flex-col sm:flex-row justify-between items-center mb-5 border-b border-bordercolor pb-4">
-                    <h2 class="text-lg font-bold text-white"><i class="fa-solid fa-list-check mr-2"></i>Últimos Movimientos</h2>
-                    <div class="flex space-x-3 mt-3 sm:mt-0">
-                        <button onclick="exportarExcel()" class="text-xs text-green-400 border border-green-400/30 px-3 py-1 rounded hover:bg-green-400/10 transition flex items-center"><i class="fa-solid fa-file-excel mr-1"></i> Exportar a Excel</button>
-                        <button onclick="limpiarHistorial()" class="text-xs text-danger border border-danger/30 px-3 py-1 rounded hover:bg-danger/10 transition flex items-center"><i class="fa-solid fa-trash mr-1"></i> Limpiar Historial</button>
+            <form onsubmit="iniciarSesionEmail(event)" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Correo autorizado</label>
+                    <input type="email" id="loginEmail" placeholder="tu@correo.com" class="w-full rounded-xl p-3 text-sm" required>
+                </div>
+                <div>
+                    <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Contraseña</label>
+                    <div class="relative">
+                        <input type="password" id="loginPassword" placeholder="••••••••" class="w-full rounded-xl p-3 pr-10 text-sm" required>
+                        <button type="button" onclick="togglePassVisibility()" class="absolute right-3 top-3 text-muted hover:text-white">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
                     </div>
                 </div>
-                <div class="overflow-x-auto rounded-xl border border-bordercolor">
-                    <table class="min-w-full text-left text-sm">
-                        <thead class="bg-cardhover border-b text-[10px] text-slate-400 uppercase">
-                            <tr><th class="py-3 px-4">Folio</th><th class="py-3 px-4">Detalle</th><th class="py-3 px-4">Método</th><th class="py-3 px-4 text-right">Monto</th><th class="py-3 px-4 text-center">X</th></tr>
-                        </thead>
-                        <tbody id="listaHistorial" class="divide-y divide-bordercolor"></tbody>
-                    </table>
+                <button type="submit" id="btnLoginEmail" class="w-full bg-white hover:bg-neutral-200 text-black font-bold py-3 rounded-xl transition text-sm">
+                    Entrar al Panel
+                </button>
+            </form>
+
+            <div class="relative my-5">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-line"></div></div>
+                <div class="relative flex justify-center text-[11px] uppercase"><span class="bg-surface px-2 text-muted">o</span></div>
+            </div>
+
+            <button type="button" onclick="iniciarSesionGoogle()" class="w-full bg-elevated hover:bg-neutral-800 border border-line text-white font-medium py-3 rounded-xl transition text-sm flex items-center justify-center space-x-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.56 2 12.1 2C6.42 2 2.03 6.8 2.03 12c0 5.05 4.13 10 10.22 10 5.35 0 9.25-3.67 9.25-9.09 0-1.15-.15-1.81-.15-1.81z"/></svg>
+                <span>Entrar con Google</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- APP PRINCIPAL (OCULTA HASTA LOGIN) -->
+    <div id="appShell" class="hidden">
+
+        <!-- MODAL CONFIRMACIÓN -->
+        <div id="customDialog" class="fixed inset-0 z-[100] flex items-center justify-center hidden bg-black/80 backdrop-blur-sm transition-opacity duration-200 opacity-0">
+            <div id="dialogBox" class="card-min rounded-2xl p-6 w-11/12 max-w-sm shadow-2xl transform scale-95 transition-transform duration-200">
+                <h3 id="dialogTitle" class="text-lg font-bold text-white mb-2">Confirmar</h3>
+                <p id="dialogMessage" class="text-muted mb-6 text-sm leading-relaxed">Mensaje</p>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeDialog()" class="px-4 py-2 rounded-xl text-muted hover:text-white hover:bg-elevated transition text-xs font-semibold">Cancelar</button>
+                    <button id="dialogConfirmBtn" class="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs">Confirmar</button>
                 </div>
             </div>
         </div>
 
-        <!-- TAB: REGISTRAR (POS) -->
-        <div id="registrar" class="tab-content relative">
+        <!-- MODAL GENÉRICO (AJUSTES / COBROS / EDICIÓN) -->
+        <div id="modalCaja" class="fixed inset-0 z-[110] flex items-center justify-center hidden bg-black/85 backdrop-blur-sm transition-opacity duration-200 opacity-0">
+            <div id="boxCaja" class="card-min rounded-2xl p-6 w-11/12 max-w-md shadow-2xl transform scale-95 transition-transform duration-200">
+                <h3 id="tituloModalCaja" class="text-lg font-bold text-white mb-4">Editar</h3>
+                <div id="cuerpoModalCaja"></div>
+            </div>
+        </div>
 
-            <div class="max-w-3xl mx-auto card-pro p-5 md:p-8 rounded-2xl border-t-4 border-t-accent shadow-2xl relative overflow-hidden">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-black text-white flex items-center tracking-tight"><i class="fa-solid fa-bolt text-accent mr-3"></i>Terminal POS</h2>
-                </div>
-                
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6 bg-cardhover p-1.5 rounded-xl border border-slate-700/50">
-                    <label class="flex flex-col items-center p-2 rounded-lg hover:bg-slate-700/50 cursor-pointer"><input type="radio" name="tipoMov" value="venta" checked onchange="toggleForm()" class="accent-success mb-1 w-4 h-4"><span class="font-bold text-slate-200 text-xs">Venta</span></label>
-                    <label class="flex flex-col items-center p-2 rounded-lg hover:bg-slate-700/50 cursor-pointer"><input type="radio" name="tipoMov" value="compra_mat" onchange="toggleForm()" class="accent-accent mb-1 w-4 h-4"><span class="font-bold text-slate-200 text-xs">Comprar Tela</span></label>
-                    <label class="flex flex-col items-center p-2 rounded-lg cursor-pointer bg-purple-500/10 border border-purple-500/30"><input type="radio" name="tipoMov" value="confeccion" onchange="toggleForm()" class="accent-purple-500 mb-1 w-4 h-4"><span class="font-bold text-purple-300 text-xs">Confección</span></label>
-                    <label class="flex flex-col items-center p-2 rounded-lg hover:bg-slate-700/50 cursor-pointer"><input type="radio" name="tipoMov" value="gasto" onchange="toggleForm()" class="accent-danger mb-1 w-4 h-4"><span class="font-bold text-slate-200 text-xs">Gasto</span></label>
+        <!-- TOASTS -->
+        <div id="toastContainer" class="fixed bottom-5 right-5 z-[150] flex flex-col space-y-2 pointer-events-none"></div>
+
+        <!-- NAVBAR MINIMALISTA -->
+        <nav class="sticky top-0 z-40 bg-void/90 backdrop-blur-md border-b border-line">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center max-w-7xl">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>
+                    </div>
+                    <span class="font-bold tracking-tight text-base hidden sm:inline">SYS PRO</span>
                 </div>
 
-                <!-- Formulario Venta -->
-                <form id="formVenta" onsubmit="registrarVenta(event)" class="space-y-4">
-                    <div class="bg-cardhover/50 p-4 rounded-xl border border-slate-700/50 space-y-4">
+                <div class="flex overflow-x-auto hide-scroll space-x-1 sm:space-x-5">
+                    <button onclick="showTab('inicio')" id="tab-inicio" class="tab-btn active px-2.5 py-2 whitespace-nowrap flex items-center space-x-1.5 text-xs sm:text-sm">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                        <span>Resumen</span>
+                    </button>
+                    <button onclick="showTab('registrar')" id="tab-registrar" class="tab-btn px-2.5 py-2 whitespace-nowrap flex items-center space-x-1.5 text-xs sm:text-sm">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                        <span>POS</span>
+                    </button>
+                    <button onclick="showTab('pedidos')" id="tab-pedidos" class="tab-btn px-2.5 py-2 whitespace-nowrap flex items-center space-x-1.5 text-xs sm:text-sm">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                        <span>Pedidos</span>
+                    </button>
+                    <button onclick="showTab('inventario')" id="tab-inventario" class="tab-btn px-2.5 py-2 whitespace-nowrap flex items-center space-x-1.5 text-xs sm:text-sm">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                        <span>Inventario</span>
+                    </button>
+                    <button onclick="showTab('taller')" id="tab-taller" class="tab-btn px-2.5 py-2 whitespace-nowrap flex items-center space-x-1.5 text-xs sm:text-sm">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                        <span>Taller</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center space-x-2">
+                    <span id="userBadge" class="hidden md:inline text-[11px] text-muted font-mono truncate max-w-[140px]"></span>
+                    <button onclick="cerrarSesion()" title="Cerrar Sesión" class="text-muted hover:text-white p-2 rounded-lg hover:bg-elevated transition">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mx-auto p-4 md:p-6 mt-2 max-w-7xl">
+            <div id="cloudStatus" class="mb-5 hidden text-xs px-4 py-2.5 rounded-xl border border-line bg-surface flex items-center justify-between"></div>
+
+            <!-- ================= TAB: RESUMEN ================= -->
+            <div id="inicio" class="tab-content active space-y-6">
+                <!-- KPIs Principales -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="card-min p-5 rounded-2xl">
+                        <div class="flex items-center justify-between text-muted text-xs mb-2">
+                            <span class="uppercase tracking-wider font-semibold">Ingresos</span>
+                            <svg class="w-4 h-4 text-pos" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-bold text-white font-mono" id="totalIngresos">$0</p>
+                    </div>
+                    <div class="card-min p-5 rounded-2xl">
+                        <div class="flex items-center justify-between text-muted text-xs mb-2">
+                            <span class="uppercase tracking-wider font-semibold">Gastos</span>
+                            <svg class="w-4 h-4 text-neg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-bold text-white font-mono" id="totalGastos">$0</p>
+                    </div>
+                    <div class="card-min p-5 rounded-2xl border-white/30">
+                        <div class="flex items-center justify-between text-muted text-xs mb-2">
+                            <span class="uppercase tracking-wider font-semibold text-white">Utilidad Neta</span>
+                            <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-extrabold font-mono" id="gananciaNeta">$0</p>
+                    </div>
+                    <div class="card-min p-5 rounded-2xl">
+                        <div class="flex items-center justify-between text-muted text-xs mb-2">
+                            <span class="uppercase tracking-wider font-semibold">Por Cobrar</span>
+                            <svg class="w-4 h-4 text-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <p class="text-2xl sm:text-3xl font-bold text-warn font-mono" id="totalPorCobrar">$0</p>
+                    </div>
+                </div>
+
+                <!-- Desglose por Método de Pago -->
+                <div class="card-min p-5 rounded-2xl">
+                    <h3 class="text-xs uppercase tracking-wider text-muted font-semibold mb-3">Balance Neto por Método de Pago</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="desgloseMetodos"></div>
+                </div>
+
+                <!-- Historial -->
+                <div class="card-min p-5 md:p-6 rounded-2xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-5 pb-4 border-b border-line">
                         <div>
-                            <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Cliente / IG</label>
-                            <input type="text" id="ventaCliente" placeholder="@maria o Juan" class="w-full rounded-lg p-2.5 text-white font-bold bg-dark border-slate-600" required>
+                            <h2 class="text-base font-bold text-white">Movimientos</h2>
+                            <p class="text-xs text-muted">Registro sincronizado en tiempo real</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-slate-400 uppercase mb-1.5">Prenda</label>
-                                <select id="ventaProducto" class="w-full rounded-lg p-2.5 text-white font-medium bg-dark border-slate-600" required onchange="actualizarPrecioVenta()"></select>
-                            </div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><label class="block text-xs text-slate-400 uppercase mb-1.5">Cant</label><input type="number" id="ventaCantidad" value="1" min="1" class="w-full rounded-lg p-2.5 text-center text-lg font-bold bg-dark" required onchange="calcularTotalVenta()"></div>
-                                <div><label class="block text-[10px] text-success text-right uppercase mb-1.5">Total ($)</label><input type="number" id="ventaTotal" class="w-full rounded-lg p-2.5 text-lg font-black text-success border-success/30 bg-success/10 text-right" required></div>
-                            </div>
+                        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                            <input type="text" id="filtroHistorial" oninput="renderizarHistorial()" placeholder="Buscar cliente o detalle..." class="rounded-xl px-3 py-1.5 text-xs w-full sm:w-48">
+                            <button onclick="exportarExcel()" class="text-xs bg-white text-black font-bold px-3.5 py-2 rounded-xl hover:bg-neutral-200 transition flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span>Exportar Excel</span>
+                            </button>
+                            <button onclick="limpiarHistorial()" class="text-xs border border-line text-muted hover:text-neg hover:border-neg px-3 py-2 rounded-xl transition flex items-center space-x-1.5">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <span>Limpiar</span>
+                            </button>
                         </div>
                     </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-left text-sm">
+                            <thead class="border-b border-line text-[11px] text-muted uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-3">Folio</th>
+                                    <th class="py-3 px-3">Detalle</th>
+                                    <th class="py-3 px-3">Método</th>
+                                    <th class="py-3 px-3 text-right">Monto</th>
+                                    <th class="py-3 px-3 text-center w-10"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="listaHistorial" class="divide-y divide-line/60"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-                    <div class="bg-orange-900/10 p-4 rounded-xl border border-orange-500/20 space-y-4">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-[10px] font-bold text-orange-300 uppercase mb-1.5">Entrega</label><select id="ventaEntrega" class="w-full rounded-lg p-2.5 text-sm bg-dark text-white"><option value="entregado">✅ Entregado</option><option value="pendiente" selected>📦 Pendiente</option></select></div>
+            <!-- ================= TAB: POS ================= -->
+            <div id="registrar" class="tab-content">
+                <div class="max-w-2xl mx-auto card-min p-5 md:p-8 rounded-2xl">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold text-white">Registrar Movimiento</h2>
+                        <p class="text-xs text-muted mt-0.5">Selecciona el tipo de operación</p>
+                    </div>
+
+                    <!-- Selector Tipo Movimiento -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 p-1.5 rounded-xl bg-void border border-line">
+                        <button type="button" onclick="seleccionarTipoPOS('venta')" id="btn-pos-venta" class="pill-active py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                            <span>Venta</span>
+                        </button>
+                        <button type="button" onclick="seleccionarTipoPOS('compra_mat')" id="btn-pos-compra_mat" class="text-muted hover:text-white py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                            <span>Insumos</span>
+                        </button>
+                        <button type="button" onclick="seleccionarTipoPOS('confeccion')" id="btn-pos-confeccion" class="text-muted hover:text-white py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            <span>Confección</span>
+                        </button>
+                        <button type="button" onclick="seleccionarTipoPOS('gasto')" id="btn-pos-gasto" class="text-muted hover:text-white py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                            <span>Otro Gasto</span>
+                        </button>
+                    </div>
+
+                    <!-- FORM VENTA -->
+                    <form id="formVenta" onsubmit="registrarVenta(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Cliente / Instagram</label>
+                            <input type="text" id="ventaCliente" placeholder="@usuario o nombre" class="w-full rounded-xl p-3 text-sm" required>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="sm:col-span-2">
+                                <div class="flex justify-between items-center mb-1.5">
+                                    <label class="block text-[11px] uppercase tracking-wider text-muted font-semibold">Prenda</label>
+                                    <span id="ventaStockInfo" class="text-[11px] font-mono text-muted"></span>
+                                </div>
+                                <select id="ventaProducto" class="w-full rounded-xl p-3 text-sm" required onchange="actualizarPrecioVenta()"></select>
+                            </div>
                             <div>
-                                <label class="block text-[10px] font-bold text-orange-300 uppercase mb-1.5">Pago</label>
-                                <select id="ventaPago" class="w-full rounded-lg p-2.5 text-sm bg-dark text-white" onchange="toggleAbonoInput()">
-                                    <option value="completo">💰 Completo</option><option value="abono">💳 Abono</option><option value="pendiente">❌ Fiado</option>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Cantidad</label>
+                                <input type="number" id="ventaCantidad" value="1" min="1" class="w-full rounded-xl p-3 text-center font-mono font-bold text-sm" required oninput="calcularTotalVenta()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-line">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Total Venta ($)</label>
+                                <input type="number" id="ventaTotal" class="w-full rounded-xl p-3 font-mono font-bold text-pos text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Entrega</label>
+                                <select id="ventaEntrega" class="w-full rounded-xl p-3 text-sm">
+                                    <option value="entregado">Entregado</option>
+                                    <option value="pendiente" selected>Pendiente</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Estado Pago</label>
+                                <select id="ventaPago" class="w-full rounded-xl p-3 text-sm" onchange="toggleAbonoInput()">
+                                    <option value="completo">Pagado</option>
+                                    <option value="abono">Abono</option>
+                                    <option value="pendiente">Por Cobrar</option>
                                 </select>
                             </div>
                         </div>
-                        <div id="divMetodoPago" class="grid grid-cols-1 mt-2">
-                            <label class="block text-xs font-bold text-slate-300 uppercase mb-1.5">¿Por dónde pagó?</label>
-                            <select id="ventaMetodo" class="w-full rounded-lg p-2.5 text-sm bg-dark text-white">
-                                <option value="transferencia">Transferencia Bancaria</option><option value="efectivo">Efectivo</option><option value="debito">Débito (Redcompra)</option><option value="credito">Crédito</option>
+
+                        <div id="divMetodoPago">
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Método de Pago</label>
+                            <select id="ventaMetodo" class="w-full rounded-xl p-3 text-sm">
+                                <option value="transferencia">Transferencia</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="debito">Débito</option>
+                                <option value="credito">Crédito</option>
                             </select>
                         </div>
-                        <div id="divAbono" class="hidden pt-3 border-t border-orange-500/20">
-                            <label class="block text-xs font-bold text-orange-400 uppercase mb-1.5">¿Cuánto pagó hoy? ($)</label>
-                            <input type="number" id="ventaAbono" min="0" class="w-full rounded-lg p-3 text-xl font-black text-orange-400 bg-dark text-center">
-                        </div>
-                    </div>
-                    <button type="submit" class="w-full mt-2 bg-success hover:bg-emerald-400 text-slate-900 font-black py-3.5 rounded-xl uppercase shadow-neon-success"><i class="fa-solid fa-check mr-2"></i> Registrar Venta</button>
-                </form>
 
-                <!-- Form Gasto Material -->
-                <form id="formCompraMat" onsubmit="registrarCompraMaterial(event)" class="hidden space-y-4">
-                    <div><label class="block text-xs uppercase mb-1.5">Insumo comprado</label><select id="compraMaterialSelect" class="w-full rounded-lg p-3 bg-dark" required onchange="actualizarPrecioMaterial()"></select></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-xs uppercase mb-1.5" id="labelCantMat">Cantidad</label><input type="number" step="0.01" id="compraMatCant" value="1" min="0.01" class="w-full rounded-lg p-3 text-lg font-bold bg-dark" required onchange="calcularTotalMaterial()"></div>
-                        <div><label class="block text-xs text-danger uppercase mb-1.5">Total Pagado ($)</label><input type="number" id="compraMatTotal" class="w-full rounded-lg p-3 text-lg font-bold text-danger bg-danger/10" required></div>
-                    </div>
+                        <div id="divAbono" class="hidden">
+                            <label class="block text-[11px] uppercase tracking-wider text-warn mb-1.5 font-semibold">Monto Abonado Hoy ($)</label>
+                            <input type="number" id="ventaAbono" min="0" class="w-full rounded-xl p-3 font-mono font-bold text-warn text-sm" placeholder="0">
+                        </div>
+
+                        <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
+                            Confirmar Venta
+                        </button>
+                    </form>
+
+                    <!-- FORM COMPRA MATERIAL -->
+                    <form id="formCompraMat" onsubmit="registrarCompraMaterial(event)" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Insumo / Tela</label>
+                            <select id="compraMaterialSelect" class="w-full rounded-xl p-3 text-sm" required onchange="actualizarPrecioMaterial()"></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold" id="labelCantMat">Cantidad</label>
+                                <input type="number" step="0.01" id="compraMatCant" value="1" min="0.01" class="w-full rounded-xl p-3 font-mono font-bold text-sm" required oninput="calcularTotalMaterial()">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Total Pagado ($)</label>
+                                <input type="number" id="compraMatTotal" class="w-full rounded-xl p-3 font-mono font-bold text-neg text-sm" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Método de Pago</label>
+                            <select id="compraMatMetodo" class="w-full rounded-xl p-3 text-sm">
+                                <option value="transferencia">Transferencia</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="debito">Débito</option>
+                                <option value="credito">Crédito</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
+                            Registrar Compra de Insumo
+                        </button>
+                    </form>
+
+                    <!-- FORM CONFECCIÓN -->
+                    <form id="formConfeccion" onsubmit="registrarConfeccion(event)" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Prenda confeccionada (Suma al stock)</label>
+                            <select id="confeccionProducto" class="w-full rounded-xl p-3 text-sm" required></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Cantidad Hecha</label>
+                                <input type="number" id="confeccionCant" value="1" min="1" class="w-full rounded-xl p-3 font-mono font-bold text-sm" required oninput="calcularTotalConfeccion()">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Costo Taller c/u ($)</label>
+                                <input type="number" id="confeccionCostoUni" min="0" class="w-full rounded-xl p-3 font-mono font-bold text-sm" required oninput="calcularTotalConfeccion()">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Total Pagado ($)</label>
+                                <input type="number" id="confeccionTotal" class="w-full rounded-xl p-3 font-mono font-bold text-neg text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Método de Pago</label>
+                                <select id="confeccionMetodo" class="w-full rounded-xl p-3 text-sm">
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="efectivo">Efectivo</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
+                            Registrar Pago y Sumar Stock
+                        </button>
+                    </form>
+
+                    <!-- FORM GASTO -->
+                    <form id="formGasto" onsubmit="registrarGasto(event)" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Concepto</label>
+                            <input type="text" id="gastoDescripcion" placeholder="Ej: Bolsas, envío, publicidad..." class="w-full rounded-xl p-3 text-sm" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Monto ($)</label>
+                                <input type="number" id="gastoMonto" min="1" class="w-full rounded-xl p-3 font-mono font-bold text-neg text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Método</label>
+                                <select id="gastoMetodo" class="w-full rounded-xl p-3 text-sm">
+                                    <option value="transferencia">Transferencia</option>
+                                    <option value="efectivo">Efectivo</option>
+                                    <option value="debito">Débito</option>
+                                    <option value="credito">Crédito</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full mt-2 bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition text-sm">
+                            Registrar Gasto
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ================= TAB: PEDIDOS ================= -->
+            <div id="pedidos" class="tab-content space-y-5">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                     <div>
-                        <label class="block text-xs uppercase mb-1.5">Método de Pago</label>
-                        <select id="compraMatMetodo" class="w-full rounded-lg p-2.5 bg-dark text-white"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="debito">Débito</option><option value="credito">Crédito</option></select>
+                        <h2 class="text-xl font-bold text-white">Pedidos</h2>
+                        <p class="text-xs text-muted">Control de entregas y saldos pendientes</p>
                     </div>
-                    <button type="submit" class="w-full mt-2 bg-accent text-slate-900 font-black py-3.5 rounded-xl uppercase">Registrar Compra</button>
-                </form>
-
-                <!-- Form Confeccion -->
-                <form id="formConfeccion" onsubmit="registrarConfeccion(event)" class="hidden space-y-4">
-                    <div><label class="block text-xs text-purple-300 uppercase mb-1.5">Prenda mandada a hacer</label><select id="confeccionProducto" class="w-full rounded-lg p-3 bg-dark" required></select></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-xs uppercase mb-1.5">Cant. Hecha</label><input type="number" id="confeccionCant" value="1" min="1" class="w-full rounded-lg p-3 text-lg font-bold bg-dark" required onchange="calcularTotalConfeccion()"></div>
-                        <div><label class="block text-xs uppercase mb-1.5">Mano Obra (c/u)</label><input type="number" id="confeccionCostoUni" min="0" class="w-full rounded-lg p-3 text-lg font-bold bg-dark" required onchange="calcularTotalConfeccion()"></div>
+                    <div class="flex space-x-1 p-1 rounded-xl bg-surface border border-line">
+                        <button onclick="setFiltroPedidos('pendientes')" id="fp-pendientes" class="pill-active px-3 py-1.5 rounded-lg text-xs transition">Pendientes</button>
+                        <button onclick="setFiltroPedidos('todos')" id="fp-todos" class="text-muted hover:text-white px-3 py-1.5 rounded-lg text-xs transition">Todos</button>
                     </div>
-                    <div><label class="block text-xs text-danger uppercase mb-1.5">Total a Pagar ($)</label><input type="number" id="confeccionTotal" class="w-full rounded-lg p-3 text-xl font-black text-danger bg-danger/10 text-center" required></div>
-                    <div><label class="block text-xs uppercase mb-1.5">Método de Pago</label><select id="confeccionMetodo" class="w-full rounded-lg p-2.5 bg-dark text-white"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option></select></div>
-                    <button type="submit" class="w-full mt-2 bg-purple-600 text-white font-black py-3.5 rounded-xl uppercase">Pagar Taller</button>
-                </form>
-
-                <!-- Form Gasto -->
-                <form id="formGasto" onsubmit="registrarGasto(event)" class="hidden space-y-4">
-                    <div><label class="block text-xs uppercase mb-1.5">Concepto</label><input type="text" id="gastoDescripcion" class="w-full rounded-lg p-3 bg-dark" required></div>
-                    <div><label class="block text-xs text-danger uppercase mb-1.5">Monto ($)</label><input type="number" id="gastoMonto" min="1" class="w-full rounded-lg p-3 text-xl font-black text-danger bg-danger/10 text-center" required></div>
-                    <div><label class="block text-xs uppercase mb-1.5">Método</label><select id="gastoMetodo" class="w-full rounded-lg p-2.5 bg-dark text-white"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="debito">Débito</option></select></div>
-                    <button type="submit" class="w-full mt-2 bg-danger text-white font-black py-3.5 rounded-xl uppercase">Registrar Gasto</button>
-                </form>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="listaPedidos"></div>
             </div>
-        </div>
 
-        <!-- TAB: PEDIDOS -->
-        <div id="pedidos" class="tab-content"><h2 class="text-2xl font-bold mb-6"><i class="fa-solid fa-box-open mr-3 text-orange-400"></i>Gestión de Pedidos</h2><div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="listaPedidos"></div></div>
+            <!-- ================= TAB: INVENTARIO ================= -->
+            <div id="inventario" class="tab-content space-y-6">
+                <!-- Resumen de Inventario -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="card-min p-4 rounded-2xl">
+                        <span class="text-[11px] uppercase tracking-wider text-muted font-semibold">Unidades en Stock</span>
+                        <p class="text-2xl font-bold font-mono mt-1" id="invTotalUnidades">0</p>
+                    </div>
+                    <div class="card-min p-4 rounded-2xl">
+                        <span class="text-[11px] uppercase tracking-wider text-muted font-semibold">Valor en Catálogo</span>
+                        <p class="text-2xl font-bold font-mono mt-1" id="invValorTotal">$0</p>
+                    </div>
+                    <div class="card-min p-4 rounded-2xl col-span-2 md:col-span-1">
+                        <span class="text-[11px] uppercase tracking-wider text-muted font-semibold">Modelos Activos</span>
+                        <p class="text-2xl font-bold font-mono mt-1" id="invTotalModelos">0</p>
+                    </div>
+                </div>
 
-        <!-- TAB: INVENTARIO -->
-        <div id="inventario" class="tab-content">
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    <h2 class="text-xl font-black flex items-center border-b border-slate-700 pb-2"><div class="w-2 h-6 bg-primary rounded-full mr-3"></div>Catálogo Terminadas</h2>
-                    <div class="card-pro p-4 rounded-xl bg-primary/5">
-                        <form id="formProducto" onsubmit="guardarProducto(event)">
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2"><div class="col-span-4"><input id="prodNombre" type="text" placeholder="Prenda" class="w-full p-2 text-sm bg-dark" required></div><div class="col-span-2"><input id="prodTallaColor" type="text" placeholder="Talla/Color" class="w-full p-2 text-sm bg-dark"></div><div class="col-span-1"><input id="prodStock" type="number" placeholder="Stock" min="0" class="w-full p-2 text-sm bg-dark text-center" required></div><div class="col-span-1"><input id="prodPrecio" type="number" placeholder="$ Venta" class="w-full p-2 text-sm bg-dark text-accent text-center" required></div></div>
-                            <button type="submit" class="w-full bg-primary text-white font-bold py-2 rounded-lg text-sm">Crear Prenda</button>
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <!-- Catálogo Prendas -->
+                    <div class="card-min p-5 rounded-2xl space-y-4">
+                        <div class="flex justify-between items-center border-b border-line pb-3">
+                            <h2 class="text-base font-bold text-white">Prendas Terminadas</h2>
+                            <span class="text-[11px] text-muted">Agrega o ajusta con + / -</span>
+                        </div>
+
+                        <form id="formProducto" onsubmit="guardarProducto(event)" class="p-4 rounded-xl bg-void border border-line space-y-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <input id="prodNombre" type="text" placeholder="Nombre (ej: Polerón Oversize)" class="w-full p-2.5 rounded-xl text-xs" required>
+                                <input id="prodTallaColor" type="text" placeholder="Talla / Color (ej: M Negro)" class="w-full p-2.5 rounded-xl text-xs">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2.5">
+                                <input id="prodStock" type="number" placeholder="Stock" min="0" class="w-full p-2.5 rounded-xl text-xs text-center font-mono" required>
+                                <input id="prodPrecio" type="number" placeholder="$ Venta" min="0" class="w-full p-2.5 rounded-xl text-xs text-center font-mono" required>
+                                <button type="submit" class="bg-white hover:bg-neutral-200 text-black font-bold py-2.5 rounded-xl text-xs transition">+ Agregar</button>
+                            </div>
                         </form>
-                    </div>
-                    <div class="overflow-x-auto rounded-xl border border-bordercolor bg-card">
-                        <table class="min-w-full text-left text-sm"><thead class="bg-cardhover border-b text-[10px] text-slate-400 uppercase"><tr><th class="py-2 px-3">Prenda</th><th class="py-2 px-3 text-center">Stock</th><th class="py-2 px-3 text-right">Precio</th><th class="py-2 px-3"></th></tr></thead><tbody id="listaProductos" class="divide-y divide-bordercolor"></tbody></table>
-                    </div>
-                </div>
 
-                <div class="space-y-4">
-                    <h2 class="text-xl font-black flex items-center border-b border-slate-700 pb-2"><div class="w-2 h-6 bg-accent rounded-full mr-3"></div>Bodega Insumos</h2>
-                    <div class="card-pro p-4 rounded-xl bg-accent/5">
-                        <form id="formMaterial" onsubmit="guardarMaterial(event)">
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2"><div class="col-span-4"><input id="matNombreForm" type="text" placeholder="Insumo" class="w-full p-2 text-sm bg-dark" required></div><div class="col-span-2"><select id="matUnidadForm" class="w-full p-2 text-sm bg-dark" required><option value="kilos">Kilos</option><option value="metros">Metros</option><option value="unidades">Unids</option></select></div><div class="col-span-2"><input id="matPrecioForm" type="number" placeholder="$ Costo" min="1" class="w-full p-2 text-sm bg-dark text-accent text-center" required></div></div>
-                            <button type="submit" class="w-full bg-accent text-dark font-bold py-2 rounded-lg text-sm">Crear Insumo</button>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-xs">
+                                <thead class="border-b border-line text-[10px] text-muted uppercase tracking-wider">
+                                    <tr>
+                                        <th class="py-2.5 px-2">Prenda</th>
+                                        <th class="py-2.5 px-2 text-center">Stock</th>
+                                        <th class="py-2.5 px-2 text-right">Precio</th>
+                                        <th class="py-2.5 px-2 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaProductos" class="divide-y divide-line/60"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Bodega Insumos -->
+                    <div class="card-min p-5 rounded-2xl space-y-4">
+                        <div class="flex justify-between items-center border-b border-line pb-3">
+                            <h2 class="text-base font-bold text-white">Bodega de Insumos</h2>
+                            <span class="text-[11px] text-muted">Telas, hilos, etiquetas</span>
+                        </div>
+
+                        <form id="formMaterial" onsubmit="guardarMaterial(event)" class="p-4 rounded-xl bg-void border border-line space-y-3">
+                            <input id="matNombreForm" type="text" placeholder="Nombre insumo (ej: Franela Negra)" class="w-full p-2.5 rounded-xl text-xs" required>
+                            <div class="grid grid-cols-3 gap-2.5">
+                                <select id="matUnidadForm" class="w-full p-2.5 rounded-xl text-xs" required>
+                                    <option value="kilos">Kilos</option>
+                                    <option value="metros">Metros</option>
+                                    <option value="unidades">Unidades</option>
+                                </select>
+                                <input id="matPrecioForm" type="number" placeholder="$ Costo" min="1" class="w-full p-2.5 rounded-xl text-xs text-center font-mono" required>
+                                <button type="submit" class="bg-white hover:bg-neutral-200 text-black font-bold py-2.5 rounded-xl text-xs transition">+ Agregar</button>
+                            </div>
                         </form>
-                    </div>
-                    <div class="overflow-x-auto rounded-xl border border-bordercolor bg-card">
-                        <table class="min-w-full text-left text-sm"><thead class="bg-cardhover border-b text-[10px] text-slate-400 uppercase"><tr><th class="py-2 px-3">Insumo</th><th class="py-2 px-3">Bodega</th><th class="py-2 px-3 text-right">Costo</th><th class="py-2 px-3"></th></tr></thead><tbody id="listaMaterialesTbody" class="divide-y divide-bordercolor"></tbody></table>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-left text-xs">
+                                <thead class="border-b border-line text-[10px] text-muted uppercase tracking-wider">
+                                    <tr>
+                                        <th class="py-2.5 px-2">Insumo</th>
+                                        <th class="py-2.5 px-2 text-center">Stock</th>
+                                        <th class="py-2.5 px-2 text-right">Costo Ref.</th>
+                                        <th class="py-2.5 px-2 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listaMaterialesTbody" class="divide-y divide-line/60"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- TAB: TALLER (WHATSAPP) -->
-        <div id="taller" class="tab-content">
-            <div class="max-w-2xl mx-auto card-pro p-5 md:p-8 rounded-2xl border-t-4 border-t-green-500 shadow-2xl">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-black text-white flex items-center tracking-tight"><i class="fa-brands fa-whatsapp text-green-500 mr-3"></i>Orden a Taller</h2>
+            <!-- ================= TAB: TALLER (WHATSAPP) ================= -->
+            <div id="taller" class="tab-content">
+                <div class="max-w-xl mx-auto card-min p-5 md:p-8 rounded-2xl">
+                    <div class="mb-6">
+                        <h2 class="text-xl font-bold text-white">Orden a Taller</h2>
+                        <p class="text-xs text-muted mt-0.5">Arma la ficha rápida y envíala directo por WhatsApp</p>
+                    </div>
+
+                    <form id="formWspTaller" onsubmit="enviarWspTaller(event)" class="space-y-5">
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-2 font-semibold">Prenda</label>
+                            <select id="wspPrenda" class="w-full rounded-xl p-3 text-sm" onchange="actualizarCierreWsp()">
+                                <option value="Polerón">Polerón</option>
+                                <option value="Conjunto">Conjunto</option>
+                                <option value="Pantalón">Pantalón</option>
+                                <option value="Polera">Polera</option>
+                                <option value="Short">Short</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-2 font-semibold">Color</label>
+                            <input type="text" id="wspColor" class="w-full rounded-xl p-3 text-sm mb-2" placeholder="Escribe o elige abajo..." required oninput="actualizarPreviewWsp()">
+                            <div class="flex flex-wrap gap-1.5">
+                                <button type="button" onclick="setWspColor('Negro')" class="px-3 py-1 rounded-lg border border-line text-xs text-muted hover:text-white hover:border-white transition">Negro</button>
+                                <button type="button" onclick="setWspColor('Rosado')" class="px-3 py-1 rounded-lg border border-line text-xs text-muted hover:text-white hover:border-white transition">Rosado</button>
+                                <button type="button" onclick="setWspColor('Gris')" class="px-3 py-1 rounded-lg border border-line text-xs text-muted hover:text-white hover:border-white transition">Gris</button>
+                                <button type="button" onclick="setWspColor('Blanco')" class="px-3 py-1 rounded-lg border border-line text-xs text-muted hover:text-white hover:border-white transition">Blanco</button>
+                                <button type="button" onclick="setWspColor('Beige')" class="px-3 py-1 rounded-lg border border-line text-xs text-muted hover:text-white hover:border-white transition">Beige</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-2 font-semibold">Talla</label>
+                                <input type="hidden" id="wspTalla" value="M">
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button type="button" onclick="setWspTalla('S')" id="talla-S" class="py-2.5 rounded-xl border border-line text-xs text-muted transition">S</button>
+                                    <button type="button" onclick="setWspTalla('M')" id="talla-M" class="pill-active py-2.5 rounded-xl border border-line text-xs transition">M</button>
+                                    <button type="button" onclick="setWspTalla('L')" id="talla-L" class="py-2.5 rounded-xl border border-line text-xs text-muted transition">L</button>
+                                    <button type="button" onclick="setWspTalla('XL')" id="talla-XL" class="py-2.5 rounded-xl border border-line text-xs text-muted transition">XL</button>
+                                </div>
+                            </div>
+
+                            <div id="divWspCierre">
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-2 font-semibold">Cierre</label>
+                                <select id="wspCierre" class="w-full rounded-xl p-2.5 text-sm" onchange="actualizarPreviewWsp()">
+                                    <option value="No">No</option>
+                                    <option value="Sí">Sí</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] uppercase tracking-wider text-muted mb-2 font-semibold">Bordado / Detalles extra</label>
+                            <textarea id="wspDetalles" rows="3" class="w-full rounded-xl p-3 text-sm" placeholder="Ej: Logo pecho izquierdo hilo blanco..." oninput="actualizarPreviewWsp()"></textarea>
+                        </div>
+
+                        <div class="p-3.5 rounded-xl bg-void border border-line">
+                            <span class="block text-[10px] uppercase tracking-wider text-muted mb-1.5">Vista previa del mensaje</span>
+                            <pre id="wspPreview" class="text-xs text-neutral-300 font-sans whitespace-pre-wrap leading-relaxed"></pre>
+                        </div>
+
+                        <button type="submit" class="w-full bg-white hover:bg-neutral-200 text-black font-bold py-3.5 rounded-xl transition flex items-center justify-center space-x-2 text-sm">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            <span>Enviar a WhatsApp</span>
+                        </button>
+                    </form>
                 </div>
-                <p class="text-slate-400 text-sm mb-6">Arma el pedido rápido para enviarlo por WhatsApp a tu confeccionista.</p>
-
-                <form id="formWspTaller" onsubmit="enviarWspTaller(event)" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Prenda</label>
-                            <select id="wspPrenda" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600" onchange="actualizarCierreWsp()">
-                                <option value="Polerón">Polerón</option><option value="Conjunto">Conjunto</option><option value="Pantalón">Pantalón</option><option value="Polera">Polera</option><option value="Short">Short</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Color</label>
-                            <input type="text" id="wspColor" list="wspColores" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600" placeholder="Ej: Negro" required>
-                            <datalist id="wspColores"><option value="Negro"><option value="Rosado"><option value="Gris"><option value="Blanco"><option value="Beige"></datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Talla</label>
-                            <select id="wspTalla" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600">
-                                <option value="S">S</option><option value="M" selected>M</option><option value="L">L</option><option value="XL">XL</option>
-                            </select>
-                        </div>
-                        <div id="divWspCierre">
-                            <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Cierre</label>
-                            <select id="wspCierre" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600">
-                                <option value="No">No</option><option value="Sí">Sí</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase mb-1.5 font-bold text-slate-300">Bordado / Detalles extra</label>
-                        <textarea id="wspDetalles" rows="3" class="w-full rounded-lg p-3 bg-dark text-white border-slate-600" placeholder="Ej: Logo pecho izquierdo hilo blanco..."></textarea>
-                    </div>
-                    
-                    <button type="submit" class="w-full mt-4 bg-green-500 hover:bg-green-400 text-dark font-black py-4 rounded-xl uppercase shadow-[0_0_15px_rgba(34,197,94,0.3)] transition-all flex items-center justify-center text-lg">
-                        <i class="fa-brands fa-whatsapp mr-2 text-2xl"></i> Enviar a WhatsApp
-                    </button>
-                </form>
             </div>
+
         </div>
     </div>
 
-    <!-- SCRIPT PRINCIPAL & FIREBASE -->
+    <!-- SCRIPT PRINCIPAL -->
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyCeEiyhezhon_3YT37jfXv7OqFq8Tq9h9U", authDomain: "dashboard-effb3.firebaseapp.com", projectId: "dashboard-effb3", storageBucket: "dashboard-effb3.firebasestorage.app", messagingSenderId: "433824711915", appId: "1:433824711915:web:7d129a7e8ad28b9e2e6aae" };
-        firebase.initializeApp(firebaseConfig); const db = firebase.firestore();
+        const firebaseConfig = {
+            apiKey: "AIzaSyCeEiyhezhon_3YT37jfXv7OqFq8Tq9h9U",
+            authDomain: "dashboard-effb3.firebaseapp.com",
+            projectId: "dashboard-effb3",
+            storageBucket: "dashboard-effb3.firebasestorage.app",
+            messagingSenderId: "433824711915",
+            appId: "1:433824711915:web:7d129a7e8ad28b9e2e6aae"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
 
-        let appData = { productos: [], materiales: [], transacciones: [], caja: {estado: 'cerrada', montoApertura: 0, historialSesiones: []}, contadorVentas: 0 };
+        let appData = {
+            productos: [],
+            materiales: [],
+            transacciones: [],
+            caja: { estado: 'cerrada', montoApertura: 0, historialSesiones: [] },
+            contadorVentas: 0
+        };
         let isCloudReady = false;
+        let unsubscribeSnapshot = null;
+        let filtroPedidosActual = 'pendientes';
 
-        document.getElementById('cloudStatus').classList.remove('hidden');
-        document.getElementById('cloudStatus').innerHTML = '<i class="fa-solid fa-rotate animate-spin mr-2"></i> Conectando nube...';
-        document.getElementById('cloudStatus').className = "mb-4 bg-sky-900/20 text-sky-300 px-4 py-2 rounded-lg text-xs flex";
-
-        db.collection("tienda").doc("masterData").onSnapshot((doc) => {
-            if (doc.exists) {
-                appData = Object.assign({ productos: [], materiales: [], transacciones: [], caja: {estado: 'cerrada', montoApertura: 0, historialSesiones: []}, contadorVentas: 0 }, doc.data());
-                if(!isCloudReady) { isCloudReady = true; showToast("Conectado a Firestore", "success"); document.getElementById('cloudStatus').classList.add('hidden'); }
-                actualizarTodo();
+        // ================= AUTHENTICATION =================
+        auth.onAuthStateChanged((user) => {
+            const gate = document.getElementById('authGate');
+            const shell = document.getElementById('appShell');
+            if (user) {
+                gate.classList.add('hidden');
+                shell.classList.remove('hidden');
+                document.getElementById('userBadge').innerText = user.email || 'Conectado';
+                conectarFirestore();
             } else {
-                let savedData = localStorage.getItem('ropaAppMasterData');
-                if (savedData) {
-                    let parsed = JSON.parse(savedData);
-                    appData = Object.assign(appData, parsed);
-                    db.collection("tienda").doc("masterData").set(appData);
-                } else db.collection("tienda").doc("masterData").set(appData);
-                isCloudReady = true; actualizarTodo();
+                if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+                isCloudReady = false;
+                shell.classList.add('hidden');
+                gate.classList.remove('hidden');
             }
         });
 
+        function togglePassVisibility() {
+            const input = document.getElementById('loginPassword');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function mostrarErrorAuth(msg) {
+            const box = document.getElementById('authError');
+            box.innerText = msg;
+            box.classList.remove('hidden');
+        }
+
+        function iniciarSesionEmail(e) {
+            e.preventDefault();
+            document.getElementById('authError').classList.add('hidden');
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPassword').value;
+            auth.signInWithEmailAndPassword(email, pass).catch((err) => {
+                if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+                    mostrarErrorAuth('Correo o contraseña incorrectos.');
+                } else {
+                    mostrarErrorAuth('Error al iniciar sesión: ' + err.message);
+                }
+            });
+        }
+
+        function iniciarSesionGoogle() {
+            document.getElementById('authError').classList.add('hidden');
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch((err) => {
+                mostrarErrorAuth('No se pudo entrar con Google: ' + err.message);
+            });
+        }
+
+        function cerrarSesion() {
+            showConfirm('Cerrar Sesión', '¿Salir de tu cuenta en este dispositivo?', 'Salir', 'bg-white text-black', () => {
+                auth.signOut();
+            });
+        }
+
+        // ================= FIRESTORE SYNC =================
+        function conectarFirestore() {
+            const statusEl = document.getElementById('cloudStatus');
+            statusEl.classList.remove('hidden');
+            statusEl.innerHTML = '<span class="text-muted">Sincronizando base de datos...</span>';
+
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            unsubscribeSnapshot = db.collection("tienda").doc("masterData").onSnapshot((doc) => {
+                if (doc.exists) {
+                    appData = Object.assign({
+                        productos: [], materiales: [], transacciones: [],
+                        caja: { estado: 'cerrada', montoApertura: 0, historialSesiones: [] },
+                        contadorVentas: 0
+                    }, doc.data());
+                    if (!isCloudReady) {
+                        isCloudReady = true;
+                        showToast("Sincronizado con la nube", "success");
+                        statusEl.classList.add('hidden');
+                    }
+                    actualizarTodo();
+                } else {
+                    let savedData = localStorage.getItem('ropaAppMasterData');
+                    if (savedData) {
+                        appData = Object.assign(appData, JSON.parse(savedData));
+                    }
+                    db.collection("tienda").doc("masterData").set(appData);
+                    isCloudReady = true;
+                    statusEl.classList.add('hidden');
+                    actualizarTodo();
+                }
+            }, (error) => {
+                statusEl.classList.remove('hidden');
+                if (error.code === 'permission-denied') {
+                    statusEl.innerHTML = '<span class="text-neg font-semibold">Acceso denegado en Firestore. Revisa las Reglas de Seguridad o entra con tu correo autorizado.</span>';
+                } else {
+                    statusEl.innerHTML = `<span class="text-neg">Error de conexión: ${error.message}</span>`;
+                }
+            });
+        }
+
         function guardarDatos() {
-            if(isCloudReady) db.collection("tienda").doc("masterData").set(appData).catch(e=>showToast("Error BD", "danger"));
+            if (isCloudReady) {
+                db.collection("tienda").doc("masterData").set(appData).catch(() => showToast("Error al guardar en nube", "danger"));
+            }
             localStorage.setItem('ropaAppMasterData', JSON.stringify(appData));
         }
 
-        // Utils
-        function formatearMoneda(val) { return '$' + parseFloat(val).toLocaleString('es-CO'); }
+        // ================= UTILS & UI =================
+        function formatearMoneda(val) {
+            const num = parseFloat(val) || 0;
+            return '$' + Math.round(num).toLocaleString('es-CO');
+        }
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
-        function generarFolio() { appData.contadorVentas++; return '#' + String(appData.contadorVentas).padStart(4, '0'); }
-        function formatearFecha(iso) { try { const f = new Date(iso); return `${f.getDate().toString().padStart(2, '0')}/${(f.getMonth()+1).toString().padStart(2, '0')} ${f.getHours().toString().padStart(2,'0')}:${f.getMinutes().toString().padStart(2,'0')}`; } catch(e) { return "-"; } }
+        function generarFolio() { appData.contadorVentas = (appData.contadorVentas || 0) + 1; return '#' + String(appData.contadorVentas).padStart(4, '0'); }
+        function formatearFecha(iso) {
+            try {
+                const f = new Date(iso);
+                return `${f.getDate().toString().padStart(2, '0')}/${(f.getMonth() + 1).toString().padStart(2, '0')} ${f.getHours().toString().padStart(2, '0')}:${f.getMinutes().toString().padStart(2, '0')}`;
+            } catch (e) { return "-"; }
+        }
+        function escHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
-        // UI Generics
-        function showTab(t) { document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active')); document.getElementById(t).classList.add('active'); document.getElementById('tab-'+t).classList.add('active'); }
-        function showToast(msg, type='success') { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); const colors = {success:'bg-success/90', danger:'bg-danger/90', purple:'bg-purple-600/90', primary:'bg-primary/90'}; t.className=`border border-white/20 ${colors[type]} text-white px-5 py-3 rounded-xl shadow-2xl flex items-center transform transition-all duration-300 translate-y-10 opacity-0`; t.innerHTML=`<span class="font-bold text-sm">${msg}</span>`; c.appendChild(t); requestAnimationFrame(()=>t.classList.remove('translate-y-10', 'opacity-0')); setTimeout(()=>{t.classList.add('translate-y-10','opacity-0'); setTimeout(()=>t.remove(),300)}, 3000); }
-        
+        function showTab(t) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+            document.getElementById(t).classList.add('active');
+            document.getElementById('tab-' + t).classList.add('active');
+        }
+
+        function showToast(msg, type = 'success') {
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            const border = type === 'danger' ? 'border-neg text-neg' : 'border-white/30 text-white';
+            t.className = `bg-elevated border ${border} px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold transform transition-all duration-200 translate-y-4 opacity-0`;
+            t.innerText = msg;
+            c.appendChild(t);
+            requestAnimationFrame(() => t.classList.remove('translate-y-4', 'opacity-0'));
+            setTimeout(() => {
+                t.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => t.remove(), 200);
+            }, 2600);
+        }
+
         let cbConfirm = null;
-        function showConfirm(title, msg, btnText, btnColor, cb) { document.getElementById('dialogTitle').innerText=title; document.getElementById('dialogMessage').innerText=msg; document.getElementById('dialogConfirmBtn').innerHTML=btnText; document.getElementById('dialogConfirmBtn').className=`px-5 py-2 rounded-lg text-white font-bold text-sm ${btnColor}`; cbConfirm = cb; const d=document.getElementById('customDialog'); d.classList.remove('hidden'); setTimeout(()=>{d.classList.remove('opacity-0'); document.getElementById('dialogBox').classList.replace('scale-95','scale-100');}, 10); }
-        function closeDialog() { const d=document.getElementById('customDialog'); d.classList.add('opacity-0'); document.getElementById('dialogBox').classList.replace('scale-100','scale-95'); setTimeout(()=>d.classList.add('hidden'), 200); }
-        document.getElementById('dialogConfirmBtn').addEventListener('click', ()=>{ if(cbConfirm)cbConfirm(); closeDialog(); });
+        function showConfirm(title, msg, btnText, btnClass, cb) {
+            document.getElementById('dialogTitle').innerText = title;
+            document.getElementById('dialogMessage').innerText = msg;
+            const btn = document.getElementById('dialogConfirmBtn');
+            btn.innerText = btnText;
+            btn.className = `px-4 py-2 rounded-xl font-bold text-xs ${btnClass || 'bg-white text-black'}`;
+            cbConfirm = cb;
+            const d = document.getElementById('customDialog');
+            d.classList.remove('hidden');
+            setTimeout(() => { d.classList.remove('opacity-0'); document.getElementById('dialogBox').classList.replace('scale-95', 'scale-100'); }, 10);
+        }
+        function closeDialog() {
+            const d = document.getElementById('customDialog');
+            d.classList.add('opacity-0');
+            document.getElementById('dialogBox').classList.replace('scale-100', 'scale-95');
+            setTimeout(() => d.classList.add('hidden'), 180);
+        }
+        document.getElementById('dialogConfirmBtn').addEventListener('click', () => { if (cbConfirm) cbConfirm(); closeDialog(); });
 
-        function modalCaja(show, html='', title='') {
-            const d = document.getElementById('modalCaja'); const b = document.getElementById('boxCaja');
-            if(show) { document.getElementById('tituloModalCaja').innerText = title; document.getElementById('cuerpoModalCaja').innerHTML = html; d.classList.remove('hidden'); setTimeout(()=>{d.classList.remove('opacity-0'); b.classList.replace('scale-95','scale-100');}, 10); } 
-            else { d.classList.add('opacity-0'); b.classList.replace('scale-100','scale-95'); setTimeout(()=>d.classList.add('hidden'), 200); }
+        function modalCaja(show, html = '', title = '') {
+            const d = document.getElementById('modalCaja');
+            const b = document.getElementById('boxCaja');
+            if (show) {
+                document.getElementById('tituloModalCaja').innerText = title;
+                document.getElementById('cuerpoModalCaja').innerHTML = html;
+                d.classList.remove('hidden');
+                setTimeout(() => { d.classList.remove('opacity-0'); b.classList.replace('scale-95', 'scale-100'); }, 10);
+            } else {
+                d.classList.add('opacity-0');
+                b.classList.replace('scale-100', 'scale-95');
+                setTimeout(() => d.classList.add('hidden'), 180);
+            }
         }
 
-        // ================= CAJA SHIFT LOGIC =================
-        function abrirModalApertura() {
+        // ================= DASHBOARD & CÁLCULOS =================
+        function actualizarDashboard() {
+            const ingresos = appData.transacciones.filter(t => t.tipo === 'ingreso').reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+            const gastos = appData.transacciones.filter(t => t.tipo === 'gasto').reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+            const porCobrar = appData.transacciones.filter(t => t.esVenta && (parseFloat(t.deuda) || 0) > 0).reduce((a, b) => a + (parseFloat(b.deuda) || 0), 0);
+            const neta = ingresos - gastos;
+
+            document.getElementById('totalIngresos').innerText = formatearMoneda(ingresos);
+            document.getElementById('totalGastos').innerText = formatearMoneda(gastos);
+            const netEl = document.getElementById('gananciaNeta');
+            netEl.innerText = formatearMoneda(neta);
+            netEl.className = `text-2xl sm:text-3xl font-extrabold font-mono ${neta >= 0 ? 'text-pos' : 'text-neg'}`;
+            document.getElementById('totalPorCobrar').innerText = formatearMoneda(porCobrar);
+
+            // Desglose neto por método de pago
+            const metodos = [
+                { key: 'transferencia', label: 'Transferencia' },
+                { key: 'efectivo', label: 'Efectivo' },
+                { key: 'debito', label: 'Débito' },
+                { key: 'credito', label: 'Crédito' }
+            ];
+            const contMet = document.getElementById('desgloseMetodos');
+            contMet.innerHTML = '';
+            metodos.forEach(m => {
+                const ent = appData.transacciones.filter(t => t.tipo === 'ingreso' && t.metodoPago === m.key).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+                const sal = appData.transacciones.filter(t => t.tipo === 'gasto' && t.metodoPago === m.key).reduce((a, b) => a + (parseFloat(b.monto) || 0), 0);
+                const bal = ent - sal;
+                contMet.innerHTML += `
+                    <div class="p-3 rounded-xl bg-void border border-line">
+                        <span class="block text-[11px] text-muted uppercase tracking-wider">${m.label}</span>
+                        <span class="block text-sm font-bold font-mono mt-1 ${bal >= 0 ? 'text-white' : 'text-neg'}">${formatearMoneda(bal)}</span>
+                    </div>`;
+            });
+
+            renderizarHistorial();
+            renderizarInventario();
+            renderizarMateriales();
+            renderizarPedidos();
+        }
+
+        function renderizarHistorial() {
+            const tbody = document.getElementById('listaHistorial');
+            const filtro = (document.getElementById('filtroHistorial')?.value || '').toLowerCase().trim();
+            tbody.innerHTML = '';
+
+            let lista = [...appData.transacciones].reverse();
+            if (filtro) {
+                lista = lista.filter(t =>
+                    (t.descripcion || '').toLowerCase().includes(filtro) ||
+                    (t.folio || '').toLowerCase().includes(filtro) ||
+                    (t.metodoPago || '').toLowerCase().includes(filtro)
+                );
+            }
+
+            if (lista.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-muted text-xs">Sin movimientos registrados.</td></tr>';
+                return;
+            }
+
+            lista.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-elevated/60 transition";
+                const color = t.tipo === 'ingreso' ? 'text-pos' : (t.tipo === 'gasto' ? 'text-neg' : 'text-muted');
+                const signo = t.monto === 0 ? '' : (t.tipo === 'ingreso' ? '+' : '-');
+                const met = t.metodoPago ? `<span class="px-2 py-0.5 rounded-md border border-line text-[10px] uppercase text-muted">${escHtml(t.metodoPago)}</span>` : '<span class="text-[10px] text-muted">-</span>';
+                tr.innerHTML = `
+                    <td class="py-3 px-3 font-mono text-xs text-muted">${escHtml(t.folio || '-')}</td>
+                    <td class="py-3 px-3">
+                        <div class="text-xs font-medium text-white">${escHtml(t.descripcion)}</div>
+                        <div class="text-[10px] text-muted mt-0.5">${formatearFecha(t.fecha)}</div>
+                    </td>
+                    <td class="py-3 px-3">${met}</td>
+                    <td class="py-3 px-3 text-right font-mono font-bold text-xs ${color}">${signo}${formatearMoneda(t.monto)}</td>
+                    <td class="py-3 px-3 text-center">
+                        <button onclick="eliminarTransaccion('${t.id}')" class="text-muted hover:text-neg transition p-1" title="Eliminar">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function eliminarTransaccion(id) {
+            const ix = appData.transacciones.findIndex(t => t.id === id);
+            if (ix === -1) return;
+            const t = appData.transacciones[ix];
+            showConfirm('Eliminar Movimiento', 'Se revertirá el stock asociado si corresponde.', 'Eliminar', 'bg-red-600 text-white', () => {
+                if (t.esVenta && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if (p) p.stock += (t.cant || 1); }
+                if (t.esCompraMaterial && t.matId) { const m = appData.materiales.find(x => x.id === t.matId); if (m) m.stock = Math.max(0, m.stock - (t.cant || 0)); }
+                if (t.esConfeccion && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if (p) p.stock = Math.max(0, p.stock - (t.cant || 0)); }
+                if (t.esPagoDeuda && t.ventaOriginalId) {
+                    const og = appData.transacciones.find(v => v.id === t.ventaOriginalId);
+                    if (og) { og.deuda += t.monto; og.monto -= t.monto; og.estadoPago = 'abono'; }
+                }
+                appData.transacciones.splice(ix, 1);
+                guardarDatos();
+                actualizarTodo();
+                showToast("Movimiento eliminado");
+            });
+        }
+
+        // ================= POS LOGIC =================
+        function seleccionarTipoPOS(tipo) {
+            ['venta', 'compra_mat', 'confeccion', 'gasto'].forEach(k => {
+                const btn = document.getElementById('btn-pos-' + k);
+                if (k === tipo) {
+                    btn.className = "pill-active py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5";
+                } else {
+                    btn.className = "text-muted hover:text-white py-2.5 px-3 rounded-lg text-xs transition flex items-center justify-center space-x-1.5";
+                }
+            });
+            ['formVenta', 'formCompraMat', 'formConfeccion', 'formGasto'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            if (tipo === 'venta') document.getElementById('formVenta').classList.remove('hidden');
+            if (tipo === 'compra_mat') document.getElementById('formCompraMat').classList.remove('hidden');
+            if (tipo === 'confeccion') document.getElementById('formConfeccion').classList.remove('hidden');
+            if (tipo === 'gasto') document.getElementById('formGasto').classList.remove('hidden');
+        }
+
+        function toggleAbonoInput() {
+            const p = document.getElementById('ventaPago').value;
+            document.getElementById('divAbono').classList.toggle('hidden', p !== 'abono');
+            document.getElementById('ventaAbono').required = (p === 'abono');
+            document.getElementById('divMetodoPago').classList.toggle('hidden', p === 'pendiente');
+        }
+
+        function actualizarPrecioVenta() {
+            const s = document.getElementById('ventaProducto');
+            const info = document.getElementById('ventaStockInfo');
+            if (s.selectedIndex > 0) {
+                const opt = s.options[s.selectedIndex];
+                const cant = parseInt(document.getElementById('ventaCantidad').value) || 1;
+                document.getElementById('ventaTotal').value = (parseFloat(opt.dataset.precio) || 0) * cant;
+                info.innerText = `Stock: ${opt.dataset.stock}`;
+            } else {
+                info.innerText = '';
+            }
+        }
+        function calcularTotalVenta() { actualizarPrecioVenta(); }
+
+        function registrarVenta(e) {
+            e.preventDefault();
+            const prod = appData.productos.find(p => p.id === document.getElementById('ventaProducto').value);
+            if (!prod) return showToast("Selecciona una prenda", "danger");
+            const cant = parseInt(document.getElementById('ventaCantidad').value) || 0;
+            if (cant <= 0) return showToast("Cantidad inválida", "danger");
+            if (prod.stock < cant) return showToast(`Stock insuficiente (${prod.stock} disp.)`, "danger");
+
+            const tot = parseFloat(document.getElementById('ventaTotal').value) || 0;
+            const cl = document.getElementById('ventaCliente').value.trim() || 'Cliente';
+            const pago = document.getElementById('ventaPago').value;
+            const met = document.getElementById('ventaMetodo').value;
+
+            let mReal = 0, d = 0;
+            if (pago === 'completo') { mReal = tot; }
+            else if (pago === 'pendiente') { mReal = 0; d = tot; }
+            else {
+                mReal = parseFloat(document.getElementById('ventaAbono').value) || 0;
+                if (mReal >= tot) mReal = tot;
+                d = Math.max(0, tot - mReal);
+            }
+
+            prod.stock -= cant;
+            appData.transacciones.push({
+                id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(),
+                descripcion: `${cant}x ${prod.nombre} (${cl})`,
+                monto: mReal, deuda: d,
+                estadoEntrega: document.getElementById('ventaEntrega').value,
+                estadoPago: (pago === 'abono' && d <= 0) ? 'completo' : pago,
+                metodoPago: pago === 'pendiente' ? null : met,
+                esVenta: true, prodId: prod.id, cant: cant, cliente: cl
+            });
+
+            guardarDatos();
+            actualizarTodo();
+            e.target.reset();
+            document.getElementById('ventaStockInfo').innerText = '';
+            toggleAbonoInput();
+            showToast("Venta registrada");
+        }
+
+        function actualizarPrecioMaterial() {
+            const s = document.getElementById('compraMaterialSelect');
+            if (s.selectedIndex > 0) {
+                const opt = s.options[s.selectedIndex];
+                const cant = parseFloat(document.getElementById('compraMatCant').value) || 1;
+                document.getElementById('compraMatTotal').value = (parseFloat(opt.dataset.precio) || 0) * cant;
+                document.getElementById('labelCantMat').innerText = `Cantidad (${opt.dataset.unidad || 'unid'})`;
+            }
+        }
+        function calcularTotalMaterial() { actualizarPrecioMaterial(); }
+
+        function registrarCompraMaterial(e) {
+            e.preventDefault();
+            const mat = appData.materiales.find(m => m.id === document.getElementById('compraMaterialSelect').value);
+            if (!mat) return showToast("Selecciona un insumo", "danger");
+            const cant = parseFloat(document.getElementById('compraMatCant').value) || 0;
+            mat.stock += cant;
+            appData.transacciones.push({
+                id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(),
+                descripcion: `Insumo: ${cant} ${mat.unidad} de ${mat.nombre}`,
+                monto: parseFloat(document.getElementById('compraMatTotal').value) || 0,
+                metodoPago: document.getElementById('compraMatMetodo').value,
+                esCompraMaterial: true, matId: mat.id, cant: cant
+            });
+            guardarDatos();
+            actualizarTodo();
+            e.target.reset();
+            showToast("Compra de insumo registrada");
+        }
+
+        function calcularTotalConfeccion() {
+            const c = parseFloat(document.getElementById('confeccionCant').value) || 0;
+            const u = parseFloat(document.getElementById('confeccionCostoUni').value) || 0;
+            document.getElementById('confeccionTotal').value = c * u;
+        }
+        function registrarConfeccion(e) {
+            e.preventDefault();
+            const prod = appData.productos.find(p => p.id === document.getElementById('confeccionProducto').value);
+            if (!prod) return showToast("Selecciona una prenda", "danger");
+            const cant = parseInt(document.getElementById('confeccionCant').value) || 0;
+            prod.stock += cant;
+            appData.transacciones.push({
+                id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(),
+                descripcion: `Confección: ${cant}x ${prod.nombre}`,
+                monto: parseFloat(document.getElementById('confeccionTotal').value) || 0,
+                metodoPago: document.getElementById('confeccionMetodo').value,
+                esConfeccion: true, prodId: prod.id, cant: cant
+            });
+            guardarDatos();
+            actualizarTodo();
+            e.target.reset();
+            showToast("Stock sumado y pago registrado");
+        }
+
+        function registrarGasto(e) {
+            e.preventDefault();
+            appData.transacciones.push({
+                id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(),
+                descripcion: document.getElementById('gastoDescripcion').value.trim(),
+                monto: parseFloat(document.getElementById('gastoMonto').value) || 0,
+                metodoPago: document.getElementById('gastoMetodo').value
+            });
+            guardarDatos();
+            actualizarTodo();
+            e.target.reset();
+            showToast("Gasto registrado");
+        }
+
+        // ================= PEDIDOS =================
+        function setFiltroPedidos(f) {
+            filtroPedidosActual = f;
+            document.getElementById('fp-pendientes').className = f === 'pendientes' ? 'pill-active px-3 py-1.5 rounded-lg text-xs transition' : 'text-muted hover:text-white px-3 py-1.5 rounded-lg text-xs transition';
+            document.getElementById('fp-todos').className = f === 'todos' ? 'pill-active px-3 py-1.5 rounded-lg text-xs transition' : 'text-muted hover:text-white px-3 py-1.5 rounded-lg text-xs transition';
+            renderizarPedidos();
+        }
+
+        function renderizarPedidos() {
+            const p = document.getElementById('listaPedidos');
+            p.innerHTML = '';
+            let ventas = appData.transacciones.filter(t => t.esVenta).reverse();
+            if (filtroPedidosActual === 'pendientes') {
+                ventas = ventas.filter(v => v.estadoEntrega !== 'entregado' || (v.deuda || 0) > 0);
+            }
+            if (ventas.length === 0) {
+                p.innerHTML = '<div class="col-span-full text-center py-10 text-muted text-xs card-min rounded-2xl">No hay pedidos en esta vista.</div>';
+                return;
+            }
+            ventas.forEach(v => {
+                const c = document.createElement('div');
+                c.className = "card-min p-4 rounded-2xl flex flex-col justify-between space-y-4";
+                c.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h3 class="font-bold text-white text-sm">${escHtml(v.cliente)}</h3>
+                            <span class="text-[11px] text-muted font-mono">${escHtml(v.folio || '')}</span>
+                        </div>
+                        <p class="text-muted text-xs">${escHtml(v.descripcion)}</p>
+                        <p class="text-[10px] text-neutral-600 mt-1">${formatearFecha(v.fecha)}</p>
+                    </div>
+                    <div class="space-y-2 pt-3 border-t border-line text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="text-muted">Entrega</span>
+                            ${v.estadoEntrega === 'entregado'
+                                ? '<span class="text-pos font-semibold">Entregado</span>'
+                                : `<button onclick="mEnt('${v.id}')" class="px-2.5 py-1 rounded-lg border border-line hover:border-white text-white transition text-[11px]">Marcar entregado</button>`}
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-muted">Pago</span>
+                            ${(v.deuda || 0) > 0
+                                ? `<button onclick="mCobro('${v.id}', ${v.deuda})" class="px-2.5 py-1 rounded-lg bg-warn/10 border border-warn/40 text-warn hover:bg-warn hover:text-black transition font-mono font-bold text-[11px]">Cobrar ${formatearMoneda(v.deuda)}</button>`
+                                : '<span class="text-pos font-semibold">Pagado</span>'}
+                        </div>
+                    </div>`;
+                p.appendChild(c);
+            });
+        }
+
+        function mEnt(id) {
+            const v = appData.transacciones.find(t => t.id === id);
+            if (v) { v.estadoEntrega = 'entregado'; guardarDatos(); actualizarTodo(); showToast("Pedido entregado"); }
+        }
+
+        function mCobro(id, deuda) {
             const h = `
-                <p class="text-slate-400 text-sm mb-4">Ingresa el monto de efectivo (sencillo) con el que abres tu caja hoy.</p>
-                <input type="number" id="montoAperturaInput" class="w-full bg-dark p-3 rounded-xl text-2xl font-black text-center mb-4 text-success border-success/30" placeholder="$0" required>
+                <label class="block text-xs text-muted mb-2">Método de pago de los <strong class="text-white">${formatearMoneda(deuda)}</strong>:</label>
+                <select id="cobroMetodo" class="w-full p-3 rounded-xl mb-5 text-sm">
+                    <option value="transferencia">Transferencia</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="debito">Débito</option>
+                    <option value="credito">Crédito</option>
+                </select>
                 <div class="flex justify-end space-x-3">
-                    <button onclick="modalCaja(false)" class="px-4 py-2 text-slate-400">Cancelar</button>
-                    <button onclick="ejecutarApertura()" class="px-5 py-2 bg-success text-dark font-bold rounded-lg shadow-neon-success">Abrir Turno</button>
-                </div>
-            `;
-            modalCaja(true, h, 'Abrir Caja Diaria');
-        }
-        function ejecutarApertura() {
-            const m = parseFloat(document.getElementById('montoAperturaInput').value) || 0;
-            appData.caja.estado = 'abierta'; appData.caja.montoApertura = m; appData.caja.fechaApertura = new Date().toISOString();
-            guardarDatos(); modalCaja(false); showToast("Turno Abierto", "success");
+                    <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
+                    <button onclick="execCobro('${id}')" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Confirmar Cobro</button>
+                </div>`;
+            modalCaja(true, h, 'Saldar Deuda');
         }
 
-        function abrirModalCierre() {
-            let efVentas = appData.transacciones.filter(t => t.fecha >= appData.caja.fechaApertura && t.tipo === 'ingreso' && t.metodoPago === 'efectivo').reduce((a,b)=>a+b.monto, 0);
-            let efGastos = appData.transacciones.filter(t => t.fecha >= appData.caja.fechaApertura && t.tipo === 'gasto' && t.metodoPago === 'efectivo').reduce((a,b)=>a+b.monto, 0);
-            let esperado = appData.caja.montoApertura + efVentas - efGastos;
-            
+        function execCobro(id) {
+            const v = appData.transacciones.find(t => t.id === id);
+            const met = document.getElementById('cobroMetodo').value;
+            if (v && (v.deuda || 0) > 0) {
+                appData.transacciones.push({
+                    id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(),
+                    descripcion: `Saldo ${v.folio || ''} (${v.cliente})`,
+                    monto: v.deuda, metodoPago: met, esPagoDeuda: true, ventaOriginalId: v.id
+                });
+                v.estadoPago = 'completo';
+                v.monto = (parseFloat(v.monto) || 0) + v.deuda;
+                v.deuda = 0;
+                guardarDatos();
+                actualizarTodo();
+                modalCaja(false);
+                showToast("Saldo cobrado");
+            }
+        }
+
+        // ================= INVENTARIO =================
+        function guardarProducto(e) {
+            e.preventDefault();
+            appData.productos.push({
+                id: generateId(),
+                nombre: document.getElementById('prodNombre').value.trim(),
+                talla: document.getElementById('prodTallaColor').value.trim(),
+                stock: parseInt(document.getElementById('prodStock').value) || 0,
+                precio: parseFloat(document.getElementById('prodPrecio').value) || 0
+            });
+            guardarDatos();
+            actualizarTodo();
+            e.target.reset();
+            showToast("Prenda agregada");
+        }
+
+        function guardarMaterial(e) {
+            e.preventDefault();
+            appData.materiales.push({
+                id: generateId(),
+                nombre: document.getElementById('matNombreForm').value.trim(),
+                unidad: document.getElementById('matUnidadForm').value,
+                precioUnitario: parseFloat(document.getElementById('matPrecioForm').value) || 0,
+                stock: 0
+            });
+            guardarDatos();
+            actualizarTodo();
+            e.target.reset();
+            showToast("Insumo agregado");
+        }
+
+        function cambioRapidoStock(id, delta, esPrenda) {
+            const it = esPrenda ? appData.productos.find(x => x.id === id) : appData.materiales.find(x => x.id === id);
+            if (!it) return;
+            it.stock = Math.max(0, (parseFloat(it.stock) || 0) + delta);
+            guardarDatos();
+            actualizarTodo();
+        }
+
+        function abrirEditarItem(id, esPrenda) {
+            const it = esPrenda ? appData.productos.find(x => x.id === id) : appData.materiales.find(x => x.id === id);
+            if (!it) return;
             const h = `
-                <div class="space-y-2 mb-4 bg-dark p-3 rounded-lg text-sm text-slate-300 font-mono">
-                    <div class="flex justify-between"><span>Base Inicial:</span><span>${formatearMoneda(appData.caja.montoApertura)}</span></div>
-                    <div class="flex justify-between text-success"><span>+ Entradas Efectivo:</span><span>${formatearMoneda(efVentas)}</span></div>
-                    <div class="flex justify-between text-danger"><span>- Salidas Efectivo:</span><span>${formatearMoneda(efGastos)}</span></div>
-                    <div class="border-t border-slate-600 pt-2 flex justify-between font-bold text-white mt-2"><span>ESPERADO EN CAJA:</span><span>${formatearMoneda(esperado)}</span></div>
+                <div class="space-y-3 mb-5">
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Nombre</label>
+                        <input type="text" id="editNombre" class="w-full p-2.5 rounded-xl text-sm" value="${escHtml(it.nombre)}">
+                    </div>
+                    ${esPrenda ? `
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Talla / Color</label>
+                        <input type="text" id="editTalla" class="w-full p-2.5 rounded-xl text-sm" value="${escHtml(it.talla || '')}">
+                    </div>` : ''}
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] uppercase text-muted mb-1">Stock Real</label>
+                            <input type="number" step="${esPrenda ? '1' : '0.01'}" id="editStock" class="w-full p-2.5 rounded-xl text-sm font-mono" value="${it.stock}">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] uppercase text-muted mb-1">${esPrenda ? 'Precio Venta ($)' : 'Costo Ref. ($)'}</label>
+                            <input type="number" id="editPrecio" class="w-full p-2.5 rounded-xl text-sm font-mono" value="${esPrenda ? it.precio : it.precioUnitario}">
+                        </div>
+                    </div>
                 </div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Plata física contada AHORA ($):</label>
-                <input type="number" id="montoCierreReal" class="w-full bg-dark p-3 rounded-xl text-2xl font-black text-center mb-4 text-white" required oninput="calcDifCierre(${esperado})">
-                <div id="difCierreDiv" class="text-center font-bold text-lg mb-4"></div>
                 <div class="flex justify-end space-x-3">
-                    <button onclick="modalCaja(false)" class="px-4 py-2 text-slate-400">Cancelar</button>
-                    <button onclick="ejecutarCierre(${esperado})" class="px-5 py-2 bg-danger text-white font-bold rounded-lg shadow-neon-danger">Cerrar Turno</button>
-                </div>
-            `;
-            modalCaja(true, h, 'Cuadre de Caja');
-        }
-        function calcDifCierre(esperado) {
-            const real = parseFloat(document.getElementById('montoCierreReal').value) || 0;
-            const dif = real - esperado;
-            const d = document.getElementById('difCierreDiv');
-            if(dif === 0) d.innerHTML = '<span class="text-success">¡Cuadre Perfecto! ($0)</span>';
-            else if(dif > 0) d.innerHTML = `<span class="text-accent">Sobra: +${formatearMoneda(dif)}</span>`;
-            else d.innerHTML = `<span class="text-danger">Falta: ${formatearMoneda(dif)}</span>`;
-        }
-        function ejecutarCierre(esperado) {
-            const real = parseFloat(document.getElementById('montoCierreReal').value);
-            if(isNaN(real)) return showToast("Ingresa un monto", "danger");
-            appData.caja.historialSesiones.push({ fechaApertura: appData.caja.fechaApertura, fechaCierre: new Date().toISOString(), esperado: esperado, real: real, diferencia: real - esperado });
-            appData.caja.estado = 'cerrada'; appData.caja.montoApertura = 0; appData.caja.fechaApertura = null;
-            guardarDatos(); modalCaja(false); showToast("Turno Cerrado. Resultado guardado.", "success");
+                    <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
+                    <button onclick="guardarEdicionItem('${id}', ${esPrenda})" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Guardar Cambios</button>
+                </div>`;
+            modalCaja(true, h, esPrenda ? 'Editar Prenda' : 'Editar Insumo');
         }
 
-        // ================= DASHBOARD & HISTORIAL =================
+        function guardarEdicionItem(id, esPrenda) {
+            const it = esPrenda ? appData.productos.find(x => x.id === id) : appData.materiales.find(x => x.id === id);
+            if (!it) return;
+            it.nombre = document.getElementById('editNombre').value.trim() || it.nombre;
+            if (esPrenda) {
+                it.talla = document.getElementById('editTalla').value.trim();
+                it.stock = parseInt(document.getElementById('editStock').value) || 0;
+                it.precio = parseFloat(document.getElementById('editPrecio').value) || 0;
+            } else {
+                it.stock = parseFloat(document.getElementById('editStock').value) || 0;
+                it.precioUnitario = parseFloat(document.getElementById('editPrecio').value) || 0;
+            }
+            guardarDatos();
+            actualizarTodo();
+            modalCaja(false);
+            showToast("Actualizado");
+        }
+
+        function eliminarItemInv(id, esPrenda) {
+            showConfirm('Eliminar del Inventario', '¿Seguro que quieres borrar este ítem?', 'Eliminar', 'bg-red-600 text-white', () => {
+                if (esPrenda) appData.productos = appData.productos.filter(x => x.id !== id);
+                else appData.materiales = appData.materiales.filter(x => x.id !== id);
+                guardarDatos();
+                actualizarTodo();
+                showToast("Eliminado");
+            });
+        }
+
+        function renderizarInventario() {
+            const b = document.getElementById('listaProductos');
+            b.innerHTML = '';
+            let totalUnids = 0, valorCat = 0;
+
+            if (appData.productos.length === 0) {
+                b.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-muted">No hay prendas creadas aún.</td></tr>';
+            } else {
+                appData.productos.forEach(p => {
+                    const st = parseInt(p.stock) || 0;
+                    const pr = parseFloat(p.precio) || 0;
+                    totalUnids += st;
+                    valorCat += st * pr;
+
+                    b.innerHTML += `
+                        <tr class="hover:bg-elevated/50 transition">
+                            <td class="py-2.5 px-2">
+                                <div class="font-semibold text-white">${escHtml(p.nombre)}</div>
+                                <div class="text-[10px] text-muted">${escHtml(p.talla || '')}</div>
+                            </td>
+                            <td class="py-2.5 px-2 text-center">
+                                <div class="inline-flex items-center space-x-1.5 bg-void border border-line rounded-lg px-1.5 py-0.5">
+                                    <button onclick="cambioRapidoStock('${p.id}', -1, true)" class="text-muted hover:text-white px-1 font-bold">-</button>
+                                    <span class="font-mono font-bold ${st > 0 ? 'text-white' : 'text-neg'} min-w-[20px] text-center">${st}</span>
+                                    <button onclick="cambioRapidoStock('${p.id}', 1, true)" class="text-muted hover:text-white px-1 font-bold">+</button>
+                                </div>
+                            </td>
+                            <td class="py-2.5 px-2 text-right font-mono text-white">${formatearMoneda(pr)}</td>
+                            <td class="py-2.5 px-2 text-right space-x-1.5 whitespace-nowrap">
+                                <button onclick="abrirEditarItem('${p.id}', true)" class="text-muted hover:text-white p-1" title="Editar">
+                                    <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <button onclick="eliminarItemInv('${p.id}', true)" class="text-muted hover:text-neg p-1" title="Eliminar">
+                                    <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            </td>
+                        </tr>`;
+                });
+            }
+
+            document.getElementById('invTotalUnidades').innerText = totalUnids;
+            document.getElementById('invValorTotal').innerText = formatearMoneda(valorCat);
+            document.getElementById('invTotalModelos').innerText = appData.productos.length;
+
+            const s = document.getElementById('ventaProducto');
+            const sc = document.getElementById('confeccionProducto');
+            s.innerHTML = '<option value="">-- Seleccionar prenda --</option>';
+            sc.innerHTML = '<option value="">-- Seleccionar prenda --</option>';
+            appData.productos.forEach(p => {
+                const label = p.talla ? `${p.nombre} (${p.talla})` : p.nombre;
+                sc.innerHTML += `<option value="${p.id}">${escHtml(label)}</option>`;
+                if (p.stock > 0) {
+                    s.innerHTML += `<option value="${p.id}" data-precio="${p.precio}" data-stock="${p.stock}">${escHtml(label)} — ${formatearMoneda(p.precio)}</option>`;
+                }
+            });
+        }
+
+        function renderizarMateriales() {
+            const b = document.getElementById('listaMaterialesTbody');
+            b.innerHTML = '';
+            if (appData.materiales.length === 0) {
+                b.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-muted">No hay insumos creados aún.</td></tr>';
+            } else {
+                appData.materiales.forEach(m => {
+                    b.innerHTML += `
+                        <tr class="hover:bg-elevated/50 transition">
+                            <td class="py-2.5 px-2 font-semibold text-white">${escHtml(m.nombre)}</td>
+                            <td class="py-2.5 px-2 text-center font-mono text-muted">${m.stock} ${escHtml(m.unidad)}</td>
+                            <td class="py-2.5 px-2 text-right font-mono text-white">${formatearMoneda(m.precioUnitario)}</td>
+                            <td class="py-2.5 px-2 text-right space-x-1.5 whitespace-nowrap">
+                                <button onclick="abrirEditarItem('${m.id}', false)" class="text-muted hover:text-white p-1" title="Editar">
+                                    <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </button>
+                                <button onclick="eliminarItemInv('${m.id}', false)" class="text-muted hover:text-neg p-1" title="Eliminar">
+                                    <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                            </td>
+                        </tr>`;
+                });
+            }
+            const s = document.getElementById('compraMaterialSelect');
+            s.innerHTML = '<option value="">-- Seleccionar insumo --</option>';
+            appData.materiales.forEach(m => {
+                s.innerHTML += `<option value="${m.id}" data-precio="${m.precioUnitario}" data-unidad="${escHtml(m.unidad)}">${escHtml(m.nombre)}</option>`;
+            });
+        }
+
+        // ================= TALLER WHATSAPP =================
+        function setWspColor(c) {
+            document.getElementById('wspColor').value = c;
+            actualizarPreviewWsp();
+        }
+        function setWspTalla(t) {
+            document.getElementById('wspTalla').value = t;
+            ['S', 'M', 'L', 'XL'].forEach(k => {
+                const el = document.getElementById('talla-' + k);
+                el.className = k === t
+                    ? 'pill-active py-2.5 rounded-xl border border-line text-xs transition'
+                    : 'py-2.5 rounded-xl border border-line text-xs text-muted transition';
+            });
+            actualizarPreviewWsp();
+        }
         function actualizarCierreWsp() {
             const v = document.getElementById('wspPrenda').value.toLowerCase();
             const d = document.getElementById('divWspCierre');
@@ -417,228 +1370,76 @@
             } else {
                 d.style.display = 'block';
             }
+            actualizarPreviewWsp();
         }
-
-        function enviarWspTaller(e) {
-            e.preventDefault();
+        function construirMensajeWsp() {
             const prenda = document.getElementById('wspPrenda').value;
-            const color = document.getElementById('wspColor').value;
+            const color = document.getElementById('wspColor').value.trim() || '(sin color)';
             const talla = document.getElementById('wspTalla').value;
             const cierre = document.getElementById('wspCierre').value;
             const detalles = document.getElementById('wspDetalles').value.trim();
 
-            let mensaje = `*NUEVO PEDIDO DE CONFECCIÓN* 🧵\n\n`;
-            mensaje += `👕 *Prenda:* ${prenda}\n`;
-            mensaje += `🎨 *Color:* ${color}\n`;
-            mensaje += `📏 *Talla:* ${talla}\n`;
+            let msg = `*NUEVO PEDIDO DE CONFECCIÓN*\n\n`;
+            msg += `*Prenda:* ${prenda}\n`;
+            msg += `*Color:* ${color}\n`;
+            msg += `*Talla:* ${talla}\n`;
             if (document.getElementById('divWspCierre').style.display !== 'none') {
-                mensaje += `🤐 *Cierre:* ${cierre}\n`;
+                msg += `*Cierre:* ${cierre}\n`;
             }
-            if (detalles) mensaje += `✨ *Bordado/Detalles:*\n${detalles}\n`;
-
-            const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+            if (detalles) msg += `*Bordado / Detalles:*\n${detalles}\n`;
+            return msg;
+        }
+        function actualizarPreviewWsp() {
+            document.getElementById('wspPreview').innerText = construirMensajeWsp();
+        }
+        function enviarWspTaller(e) {
+            e.preventDefault();
+            const url = `https://wa.me/?text=${encodeURIComponent(construirMensajeWsp())}`;
             window.open(url, '_blank');
         }
 
-        function actualizarDashboard() {
-            const i = appData.transacciones.filter(t => t.tipo === 'ingreso').reduce((a, b) => a + (b.monto || 0), 0);
-            const g = appData.transacciones.filter(t => t.tipo === 'gasto').reduce((a, b) => a + (b.monto || 0), 0);
-            document.getElementById('totalIngresos').innerText = formatearMoneda(i);
-            document.getElementById('totalGastos').innerText = formatearMoneda(g);
-            document.getElementById('gananciaNeta').innerText = formatearMoneda(i - g);
-
-            renderizarHistorial(); renderizarInventario(); renderizarMateriales(); renderizarPedidos();
-        }
-
-        function renderizarHistorial() {
-            const tbody = document.getElementById('listaHistorial'); tbody.innerHTML = '';
-            if (appData.transacciones.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-slate-500 italic text-xs">Aún no hay movimientos.</td></tr>'; return;}
-            [...appData.transacciones].reverse().forEach(t => {
-                const tr = document.createElement('tr'); tr.className = "hover:bg-slate-800 transition border-b border-slate-800/50";
-                let cl = t.tipo==='ingreso'?'text-success':'text-danger';
-                let met = t.metodoPago ? `<span class="bg-slate-800 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider text-slate-300 ml-1">${t.metodoPago}</span>` : '';
-                tr.innerHTML = `
-                    <td class="py-2.5 px-4 font-mono text-accent text-xs font-bold">${t.folio || '-'}</td>
-                    <td class="py-2.5 px-4 text-xs font-medium text-slate-200">${t.descripcion} <div class="text-[10px] text-slate-500 mt-0.5">${formatearFecha(t.fecha)}</div></td>
-                    <td class="py-2.5 px-4">${met}</td>
-                    <td class="py-2.5 px-4 text-right font-black ${cl}">${t.monto===0?'$0':(t.tipo==='ingreso'?'+':'-')+formatearMoneda(t.monto)}</td>
-                    <td class="py-2.5 px-4 text-center"><button onclick="eliminarTransaccion('${t.id}')" class="text-slate-600 hover:text-rose-500"><i class="fa-solid fa-xmark"></i></button></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-        function eliminarTransaccion(id) {
-            const ix = appData.transacciones.findIndex(t => t.id === id); if (ix === -1) return; const t = appData.transacciones[ix];
-            showConfirm('Eliminar', 'Revertirá stock si aplica.', 'Eliminar', 'bg-rose-600', () => {
-                if(t.esVenta && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if(p) p.stock += (t.cant || 1); }
-                if(t.esCompraMaterial && t.matId) { const m = appData.materiales.find(x => x.id === t.matId); if(m) { m.stock -= (t.cant || 0); } }
-                if(t.esConfeccion && t.prodId) { const p = appData.productos.find(x => x.id === t.prodId); if(p) { p.stock -= (t.cant || 0); } }
-                if(t.esPagoDeuda && t.ventaOriginalId) { const og = appData.transacciones.find(v => v.id === t.ventaOriginalId); if(og) { og.deuda += t.monto; og.monto -= t.monto; og.estadoPago = 'abono'; } }
-                appData.transacciones.splice(ix, 1); guardarDatos(); showToast("Borrado", "success");
-            });
-        }
-
-        // ================= POS LOGIC =================
-        function toggleForm() {
-            const v = document.querySelector('input[name="tipoMov"]:checked').value;
-            ['formVenta', 'formCompraMat', 'formConfeccion', 'formGasto'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            if (v === 'venta') document.getElementById('formVenta').classList.remove('hidden');
-            if (v === 'compra_mat') document.getElementById('formCompraMat').classList.remove('hidden');
-            if (v === 'confeccion') document.getElementById('formConfeccion').classList.remove('hidden');
-            if (v === 'gasto') document.getElementById('formGasto').classList.remove('hidden');
-        }
-        function toggleAbonoInput() {
-            const p = document.getElementById('ventaPago').value;
-            document.getElementById('divAbono').classList.toggle('hidden', p !== 'abono');
-            document.getElementById('ventaAbono').required = (p === 'abono');
-            document.getElementById('divMetodoPago').classList.toggle('hidden', p === 'pendiente');
-        }
-
-        function asegurarCajaAbierta() {
-            if(appData.caja.estado === 'cerrada') { appData.caja.estado = 'abierta'; appData.caja.montoApertura = 0; appData.caja.fechaApertura = new Date().toISOString(); }
-        }
-
-        function actualizarPrecioVenta() { const s = document.getElementById('ventaProducto'); if(s.selectedIndex>0) document.getElementById('ventaTotal').value = s.options[s.selectedIndex].dataset.precio * (document.getElementById('ventaCantidad').value || 1); }
-        function calcularTotalVenta() { actualizarPrecioVenta(); }
-        function registrarVenta(e) {
-            e.preventDefault();
-            asegurarCajaAbierta();
-            const prod = appData.productos.find(p => p.id === document.getElementById('ventaProducto').value);
-            if(!prod) return; const cant = parseInt(document.getElementById('ventaCantidad').value);
-            if(prod.stock < cant) return showToast(`Falta stock (${prod.stock})`, "danger");
-            const tot = parseFloat(document.getElementById('ventaTotal').value); const cl = document.getElementById('ventaCliente').value || 'Sin nombre';
-            const pago = document.getElementById('ventaPago').value; const met = document.getElementById('ventaMetodo').value;
-            let mReal = 0; let d = 0;
-            if(pago === 'completo') mReal = tot;
-            else if(pago === 'pendiente') { mReal = 0; d = tot; }
-            else { mReal = parseFloat(document.getElementById('ventaAbono').value)||0; if(mReal>=tot)mReal=tot; d=tot-mReal; }
-            prod.stock -= cant;
-            appData.transacciones.push({ id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(), descripcion: `${cant}x ${prod.nombre} (${cl})`, monto: mReal, deuda: d, estadoEntrega: document.getElementById('ventaEntrega').value, estadoPago: pago==='abono'&&d<=0?'completo':pago, metodoPago: pago==='pendiente'?null:met, esVenta: true, prodId: prod.id, cant: cant, cliente: cl });
-            guardarDatos(); e.target.reset(); toggleAbonoInput(); showToast("Venta Exitosa", "success");
-        }
-
-        function actualizarPrecioMaterial() { const s = document.getElementById('compraMaterialSelect'); if(s.selectedIndex>0) document.getElementById('compraMatTotal').value = s.options[s.selectedIndex].dataset.precio * (document.getElementById('compraMatCant').value || 1); }
-        function calcularTotalMaterial() { actualizarPrecioMaterial(); }
-        function registrarCompraMaterial(e) {
-            e.preventDefault(); asegurarCajaAbierta(); const mat = appData.materiales.find(m => m.id === document.getElementById('compraMaterialSelect').value); if(!mat) return;
-            const cant = parseFloat(document.getElementById('compraMatCant').value); mat.stock += cant;
-            appData.transacciones.push({ id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(), descripcion: `Compra Tela: ${cant} de ${mat.nombre}`, monto: parseFloat(document.getElementById('compraMatTotal').value), metodoPago: document.getElementById('compraMatMetodo').value, esCompraMaterial: true, matId: mat.id, cant: cant });
-            guardarDatos(); e.target.reset(); showToast("Tela registrada", "success");
-        }
-
-        function calcularTotalConfeccion() { document.getElementById('confeccionTotal').value = (document.getElementById('confeccionCant').value||0) * (document.getElementById('confeccionCostoUni').value||0); }
-        function registrarConfeccion(e) {
-            e.preventDefault(); asegurarCajaAbierta(); const prod = appData.productos.find(p => p.id === document.getElementById('confeccionProducto').value); if(!prod) return;
-            const cant = parseInt(document.getElementById('confeccionCant').value); prod.stock += cant;
-            appData.transacciones.push({ id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(), descripcion: `Pago Taller: ${cant}x ${prod.nombre}`, monto: parseFloat(document.getElementById('confeccionTotal').value), metodoPago: document.getElementById('confeccionMetodo').value, esConfeccion: true, prodId: prod.id, cant: cant });
-            guardarDatos(); e.target.reset(); showToast("Taller pagado", "purple");
-        }
-
-        function registrarGasto(e) {
-            e.preventDefault(); asegurarCajaAbierta();
-            appData.transacciones.push({ id: generateId(), folio: generarFolio(), tipo: 'gasto', fecha: new Date().toISOString(), descripcion: document.getElementById('gastoDescripcion').value, monto: parseFloat(document.getElementById('gastoMonto').value), metodoPago: document.getElementById('gastoMetodo').value });
-            guardarDatos(); e.target.reset(); showToast("Gasto OK", "success");
-        }
-
-        // ================= PEDIDOS =================
-        function renderizarPedidos() {
-            const p = document.getElementById('listaPedidos'); p.innerHTML = '';
-            appData.transacciones.filter(t => t.esVenta).reverse().forEach(v => {
-                const c = document.createElement('div'); c.className = `card-pro p-4 rounded-2xl flex flex-col justify-between border-t-4 ${v.deuda>0?'border-t-orange-400':'border-t-success'}`;
-                c.innerHTML = `
-                    <div class="mb-4">
-                        <div class="flex justify-between items-start mb-1"><h3 class="font-black text-white text-lg tracking-tight text-accent">${v.cliente} <span class="text-xs text-slate-500 font-mono ml-2">${v.folio||''}</span></h3></div>
-                        <p class="text-slate-300 text-xs flex items-start"><i class="fa-solid fa-shirt mt-1 mr-2 text-slate-500"></i><span class="font-medium">${v.descripcion}</span></p>
-                    </div>
-                    <div class="space-y-2 bg-cardhover p-3 rounded-xl border border-bordercolor mt-auto text-xs">
-                        <div class="flex justify-between items-center"><span class="font-bold text-slate-400 uppercase">Entrega:</span>${v.estadoEntrega==='entregado'?`<span class="text-success font-bold"><i class="fa-solid fa-check"></i> Listo</span>`:`<button onclick="mEnt('${v.id}')" class="text-orange-400 hover:text-white border border-orange-400/30 px-2 py-1 rounded">📦 Entregar</button>`}</div>
-                        <div class="flex justify-between items-center pt-2 border-t border-slate-700/50"><span class="font-bold text-slate-400 uppercase">Pago:</span>${v.deuda>0?`<button onclick="mCobro('${v.id}', ${v.deuda})" class="text-rose-400 hover:text-white border border-rose-400/30 px-2 py-1 rounded">💵 Cobrar ${formatearMoneda(v.deuda)}</button>`:`<span class="text-success font-bold"><i class="fa-solid fa-check"></i> Pagado</span>`}</div>
-                    </div>`;
-                p.appendChild(c);
-            });
-        }
-        function mEnt(id) { const v = appData.transacciones.find(t=>t.id===id); if(v){ v.estadoEntrega='entregado'; guardarDatos(); } }
-        function mCobro(id, deuda) {
-            const h = `
-                <label class="block text-xs font-bold text-slate-400 mb-2">Método de pago de los ${formatearMoneda(deuda)}:</label>
-                <select id="cobroMetodo" class="w-full bg-dark p-3 rounded-xl mb-4 text-white border-slate-600"><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option></select>
-                <div class="flex justify-end space-x-3"><button onclick="modalCaja(false)" class="text-slate-400">Cancelar</button><button onclick="execCobro('${id}')" class="px-5 py-2 bg-success text-dark font-bold rounded">Cobrar</button></div>`;
-            modalCaja(true, h, 'Saldar Deuda');
-        }
-        function execCobro(id) {
-            asegurarCajaAbierta();
-            const v = appData.transacciones.find(t=>t.id===id); const met = document.getElementById('cobroMetodo').value;
-            if(v) {
-                appData.transacciones.push({ id: generateId(), folio: generarFolio(), tipo: 'ingreso', fecha: new Date().toISOString(), descripcion: `Pago Deuda: ${v.folio} ${v.cliente}`, monto: v.deuda, metodoPago: met, esPagoDeuda: true, ventaOriginalId: v.id });
-                v.estadoPago = 'completo'; v.monto += v.deuda; v.deuda = 0; guardarDatos(); modalCaja(false);
-            }
-        }
-
-        // ================= INVENTARIO =================
-        function guardarProducto(e) { e.preventDefault(); appData.productos.push({ id: generateId(), nombre: document.getElementById('prodNombre').value, talla: document.getElementById('prodTallaColor').value, stock: parseInt(document.getElementById('prodStock').value), precio: parseFloat(document.getElementById('prodPrecio').value) }); guardarDatos(); e.target.reset(); }
-        function guardarMaterial(e) { e.preventDefault(); appData.materiales.push({ id: generateId(), nombre: document.getElementById('matNombreForm').value, unidad: document.getElementById('matUnidadForm').value, precioUnitario: parseFloat(document.getElementById('matPrecioForm').value), stock: 0 }); guardarDatos(); e.target.reset(); }
-        
-        function abrirAjusteStock(id, nombre, actual, esPrenda) {
-            const h = `
-                <p class="text-sm text-slate-400 mb-2">Stock Actual de <b>${nombre}</b>: ${actual}</p>
-                <label class="block text-xs font-bold text-white mb-2">Nuevo stock REAL (Conteo físico):</label>
-                <input type="number" id="nuevoStockAj" class="w-full bg-dark p-3 rounded-xl mb-4 text-white" value="${actual}">
-                <label class="block text-xs font-bold text-white mb-2">Motivo (Merma, error, etc):</label>
-                <input type="text" id="motivoAj" class="w-full bg-dark p-3 rounded-xl mb-4 text-white">
-                <div class="flex justify-end space-x-3"><button onclick="modalCaja(false)" class="text-slate-400">Cancelar</button><button onclick="execAjuste('${id}', ${esPrenda})" class="px-5 py-2 bg-purple-500 text-white font-bold rounded">Ajustar</button></div>`;
-            modalCaja(true, h, 'Ajuste Manual Stock');
-        }
-        function execAjuste(id, esPrenda) {
-            const nuevo = parseFloat(document.getElementById('nuevoStockAj').value); const mot = document.getElementById('motivoAj').value || 'Ajuste Manual';
-            const it = esPrenda ? appData.productos.find(x=>x.id===id) : appData.materiales.find(x=>x.id===id);
-            if(it) {
-                const dif = nuevo - it.stock;
-                appData.transacciones.push({ id: generateId(), folio: generarFolio(), tipo: 'ajuste', fecha: new Date().toISOString(), descripcion: `Ajuste (${mot}): ${dif>0?'+':''}${dif} ${it.nombre}`, monto: 0 });
-                it.stock = nuevo; guardarDatos(); modalCaja(false); showToast("Stock Actualizado", "purple");
-            }
-        }
-
-        function renderizarInventario() {
-            const b = document.getElementById('listaProductos'); b.innerHTML='';
-            appData.productos.forEach(p => {
-                b.innerHTML += `<tr class="hover:bg-slate-800 border-b border-slate-800/50"><td class="py-2 px-3 font-bold text-slate-200">${p.nombre} <span class="text-xs text-slate-500">${p.talla}</span></td><td class="py-2 px-3 text-center text-success font-black">${p.stock}</td><td class="py-2 px-3 text-accent font-bold text-right">${formatearMoneda(p.precio)}</td><td class="py-2 px-3 text-right"><button onclick="abrirAjusteStock('${p.id}','${p.nombre}',${p.stock},true)" class="text-slate-400 hover:text-purple-400 mr-3"><i class="fa-solid fa-scale-unbalanced"></i></button><button onclick="showConfirm('X','¿Borrar?','Borrar','bg-rose-600',()=>appData.productos=appData.productos.filter(x=>x.id!=='${p.id}'));guardarDatos()" class="text-slate-500 hover:text-rose-500"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
-            });
-            const s=document.getElementById('ventaProducto'); const sc=document.getElementById('confeccionProducto');
-            s.innerHTML='<option value="">-- Prenda --</option>'; sc.innerHTML='<option value="">-- Prenda --</option>';
-            appData.productos.forEach(p=>{ sc.innerHTML+=`<option value="${p.id}">${p.nombre}</option>`; if(p.stock>0) s.innerHTML+=`<option value="${p.id}" data-precio="${p.precio}">${p.nombre} - $${p.precio}</option>`; });
-        }
-        function renderizarMateriales() {
-            const b = document.getElementById('listaMaterialesTbody'); b.innerHTML='';
-            appData.materiales.forEach(m => {
-                b.innerHTML += `<tr class="hover:bg-slate-800 border-b border-slate-800/50"><td class="py-2 px-3 font-bold text-slate-200">${m.nombre}</td><td class="py-2 px-3 text-xs">${m.stock} ${m.unidad}</td><td class="py-2 px-3 text-accent font-bold text-right">${formatearMoneda(m.precioUnitario)}</td><td class="py-2 px-3 text-right"><button onclick="abrirAjusteStock('${m.id}','${m.nombre}',${m.stock},false)" class="text-slate-400 hover:text-purple-400 mr-3"><i class="fa-solid fa-scale-unbalanced"></i></button><button onclick="showConfirm('X','¿Borrar?','Borrar','bg-rose-600',()=>appData.materiales=appData.materiales.filter(x=>x.id!=='${m.id}'));guardarDatos()" class="text-slate-500 hover:text-rose-500"><i class="fa-solid fa-trash-can"></i></button></td></tr>`;
-            });
-            const s=document.getElementById('compraMaterialSelect'); s.innerHTML='<option value="">-- Insumo --</option>';
-            appData.materiales.forEach(m=>{ s.innerHTML+=`<option value="${m.id}" data-precio="${m.precioUnitario}" data-unidad="${m.unidad}">${m.nombre}</option>`; });
-        }
-
+        // ================= EXCEL & LIMPIEZA =================
         function exportarExcel() {
-            let csv = "Fecha,Folio,Tipo,Detalle,Metodo,Monto\n";
-            let tIngreso = 0; let tGasto = 0;
+            let csv = "\uFEFFFecha,Folio,Tipo,Detalle,Metodo,Monto\n";
+            let tIngreso = 0, tGasto = 0, tDeuda = 0;
             appData.transacciones.forEach(t => {
                 const f = t.fecha ? t.fecha.split('T')[0] : '';
                 let m = 0;
-                if(t.tipo === 'ingreso') { m = t.monto; tIngreso += m; } else { m = -t.monto; tGasto += t.monto; }
-                csv += `${f},${t.folio||''},${t.tipo},"${t.descripcion}",${t.metodoPago||''},${m}\n`;
+                const monto = parseFloat(t.monto) || 0;
+                if (t.tipo === 'ingreso') { m = monto; tIngreso += monto; }
+                else if (t.tipo === 'gasto') { m = -monto; tGasto += monto; }
+                if (t.esVenta && (parseFloat(t.deuda) || 0) > 0) tDeuda += parseFloat(t.deuda);
+                const desc = (t.descripcion || '').replace(/"/g, '""');
+                csv += `${f},${t.folio || ''},${t.tipo},"${desc}",${t.metodoPago || ''},${m}\n`;
             });
-            csv += `\n,,,TOTAL INGRESOS,,${tIngreso}\n`;
+            csv += `\n,,,TOTAL INGRESOS COBRADOS,,${tIngreso}\n`;
             csv += `,,,TOTAL GASTOS,,${tGasto}\n`;
             csv += `,,,UTILIDAD NETA,,${tIngreso - tGasto}\n`;
+            csv += `,,,SALDOS POR COBRAR,,${tDeuda}\n`;
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             link.setAttribute("href", URL.createObjectURL(blob));
-            link.setAttribute("download", `Reporte_Historial_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            link.setAttribute("download", `Reporte_SYS_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
-        function limpiarHistorial() { showConfirm('Borrar Historial', 'Borrará todo el historial de ventas y gastos. Recuerda exportar a Excel primero.', 'Limpiar', 'bg-rose-600', () => { appData.transacciones = []; guardarDatos(); }); }
-        function confirmarResetTotal() { showConfirm('RESET TOTAL', 'Borrará historial, inventario y nube. ¡Peligro!', 'Reset', 'bg-rose-600', () => { localStorage.clear(); appData={productos:[],materiales:[],transacciones:[],caja:{estado:'cerrada',montoApertura:0,historialSesiones:[]},contadorVentas:0}; db.collection("tienda").doc("masterData").set(appData); location.reload(); }); }
-        function actualizarTodo() { actualizarDashboard(); }
+        function limpiarHistorial() {
+            showConfirm('Limpiar Historial', 'Se borrará el historial de ventas y gastos (tu inventario NO se borra). Exporta a Excel antes.', 'Limpiar', 'bg-red-600 text-white', () => {
+                appData.transacciones = [];
+                guardarDatos();
+                actualizarTodo();
+                showToast("Historial reiniciado");
+            });
+        }
+
+        function actualizarTodo() {
+            actualizarDashboard();
+        }
+
+        actualizarPreviewWsp();
     </script>
 </body>
 </html>
