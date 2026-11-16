@@ -232,6 +232,24 @@
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="desgloseMetodos"></div>
                 </div>
 
+                <!-- Ventas por Línea: Ropa vs Relojes -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="card-min p-5 rounded-2xl flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] uppercase tracking-wider text-muted font-semibold">Ventas Ropa (Polerones / Pantalones)</span>
+                            <p class="text-2xl font-bold font-mono text-white mt-1" id="ventasRopaTotal">$0</p>
+                        </div>
+                        <span class="text-xs font-mono text-muted border border-line px-2.5 py-1 rounded-lg" id="ventasRopaCount">0 ventas</span>
+                    </div>
+                    <div class="card-min p-5 rounded-2xl flex items-center justify-between">
+                        <div>
+                            <span class="text-[11px] uppercase tracking-wider text-muted font-semibold">Ventas Relojes (LostKey)</span>
+                            <p class="text-2xl font-bold font-mono text-white mt-1" id="ventasRelojesTotal">$0</p>
+                        </div>
+                        <span class="text-xs font-mono text-muted border border-line px-2.5 py-1 rounded-lg" id="ventasRelojesCount">0 ventas</span>
+                    </div>
+                </div>
+
                 <!-- Historial -->
                 <div class="card-min p-5 md:p-6 rounded-2xl">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-5 pb-4 border-b border-line">
@@ -504,7 +522,14 @@
                             </div>
                         </div>
 
-                        <input id="filtroInventario" oninput="renderizarInventario()" type="text" placeholder="Buscar por nombre, KEY, L&K o talla..." class="w-full p-2.5 rounded-xl text-xs">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <input id="filtroInventario" oninput="renderizarInventario()" type="text" placeholder="Buscar por nombre, KEY, L&K o talla..." class="flex-1 p-2.5 rounded-xl text-xs">
+                            <div class="flex space-x-1 p-1 rounded-xl bg-void border border-line">
+                                <button type="button" onclick="setFiltroInvCat('todos')" id="fic-todos" class="pill-active px-2.5 py-1 rounded-lg text-[11px] transition">Todos</button>
+                                <button type="button" onclick="setFiltroInvCat('ropa')" id="fic-ropa" class="text-muted hover:text-white px-2.5 py-1 rounded-lg text-[11px] transition">Ropa</button>
+                                <button type="button" onclick="setFiltroInvCat('relojes')" id="fic-relojes" class="text-muted hover:text-white px-2.5 py-1 rounded-lg text-[11px] transition">Relojes</button>
+                            </div>
+                        </div>
 
                         <form id="formProducto" onsubmit="guardarProducto(event)" class="p-4 rounded-xl bg-void border border-line space-y-3">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -919,6 +944,19 @@
                         <span class="block text-sm font-bold font-mono mt-1 ${bal >= 0 ? 'text-white' : 'text-neg'}">${formatearMoneda(bal)}</span>
                     </div>`;
             });
+
+            // Ventas por Línea: Ropa vs Relojes
+            let sumRopa = 0, cntRopa = 0, sumRel = 0, cntRel = 0;
+            appData.transacciones.filter(t => t.esVenta).forEach(v => {
+                const cat = detectarCategoria(v.descripcion, v.categoria);
+                const m = parseFloat(v.monto) || 0;
+                if (cat === 'relojes') { sumRel += m; cntRel++; }
+                else { sumRopa += m; cntRopa++; }
+            });
+            document.getElementById('ventasRopaTotal').innerText = formatearMoneda(sumRopa);
+            document.getElementById('ventasRopaCount').innerText = `${cntRopa} ${cntRopa === 1 ? 'venta' : 'ventas'}`;
+            document.getElementById('ventasRelojesTotal').innerText = formatearMoneda(sumRel);
+            document.getElementById('ventasRelojesCount').innerText = `${cntRel} ${cntRel === 1 ? 'venta' : 'ventas'}`;
 
             renderizarHistorial();
             renderizarInventario();
@@ -1360,9 +1398,12 @@
                 valorCat += st * prFinal;
             });
 
-            const listaFiltrada = filtroInv
-                ? appData.productos.filter(p => (p.nombre || '').toLowerCase().includes(filtroInv) || (p.talla || '').toLowerCase().includes(filtroInv))
-                : appData.productos;
+            const listaFiltrada = appData.productos.filter(p => {
+                const matchText = !filtroInv || (p.nombre || '').toLowerCase().includes(filtroInv) || (p.talla || '').toLowerCase().includes(filtroInv);
+                const cat = detectarCategoria(`${p.nombre} ${p.talla}`, p.categoria);
+                const matchCat = filtroInvCat === 'todos' || cat === filtroInvCat;
+                return matchText && matchCat;
+            });
 
             if (listaFiltrada.length === 0) {
                 b.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-muted">No hay productos que coincidan.</td></tr>';
@@ -1821,6 +1862,23 @@
             }).catch(() => {
                 showToast("Error al conectar con Google Sheets", "danger");
             });
+        }
+
+        let filtroInvCat = 'todos';
+        function setFiltroInvCat(c) {
+            filtroInvCat = c;
+            ['todos', 'ropa', 'relojes'].forEach(k => {
+                document.getElementById('fic-' + k).className = k === c
+                    ? 'pill-active px-2.5 py-1 rounded-lg text-[11px] transition'
+                    : 'text-muted hover:text-white px-2.5 py-1 rounded-lg text-[11px] transition';
+            });
+            renderizarInventario();
+        }
+        function detectarCategoria(texto, catGuardada) {
+            if (catGuardada === 'relojes' || catGuardada === 'ropa') return catGuardada;
+            const t = (texto || '').toLowerCase();
+            if (t.includes('reloj') || t.includes('key 0') || t.includes('l&k') || t.includes('poedagar')) return 'relojes';
+            return 'ropa';
         }
 
         // ================= TAMAÑO DE TEXTO =================
