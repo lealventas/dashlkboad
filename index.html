@@ -177,6 +177,10 @@
                 </div>
 
                 <div class="flex items-center space-x-2">
+                    <div class="flex items-center border border-line rounded-lg overflow-hidden bg-void">
+                        <button type="button" onclick="cambiarTamanoTexto(-2)" title="Reducir texto" class="px-2 py-1 text-[11px] font-bold text-muted hover:text-white hover:bg-elevated transition">A-</button>
+                        <button type="button" onclick="cambiarTamanoTexto(2)" title="Agrandar texto" class="px-2 py-1 text-[11px] font-bold text-muted hover:text-white hover:bg-elevated transition border-l border-line">A+</button>
+                    </div>
                     <span id="userBadge" class="hidden md:inline text-[11px] text-muted font-mono truncate max-w-[140px]"></span>
                     <button onclick="cerrarSesion()" title="Cerrar Sesión" class="text-muted hover:text-white p-2 rounded-lg hover:bg-elevated transition">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -318,7 +322,11 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-line">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-line">
+                            <div>
+                                <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Descuento (%)</label>
+                                <input type="number" id="ventaDescuento" value="0" min="0" max="100" class="w-full rounded-xl p-3 font-mono font-bold text-warn text-sm text-center" oninput="calcularTotalVenta()">
+                            </div>
                             <div>
                                 <label class="block text-[11px] uppercase tracking-wider text-muted mb-1.5 font-semibold">Total Venta ($)</label>
                                 <input type="number" id="ventaTotal" class="w-full rounded-xl p-3 font-mono font-bold text-pos text-sm" required>
@@ -503,9 +511,10 @@
                                 <input id="prodNombre" type="text" placeholder="Nombre (ej: Polerón Oversize)" class="w-full p-2.5 rounded-xl text-xs" required>
                                 <input id="prodTallaColor" type="text" placeholder="Talla / Color (ej: M Negro)" class="w-full p-2.5 rounded-xl text-xs">
                             </div>
-                            <div class="grid grid-cols-3 gap-2.5">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                                 <input id="prodStock" type="number" placeholder="Stock" min="0" class="w-full p-2.5 rounded-xl text-xs text-center font-mono" required>
                                 <input id="prodPrecio" type="number" placeholder="$ Venta" min="0" class="w-full p-2.5 rounded-xl text-xs text-center font-mono" required>
+                                <input id="prodDescuento" type="number" placeholder="% Dcto" min="0" max="100" class="w-full p-2.5 rounded-xl text-xs text-center font-mono">
                                 <button type="submit" class="bg-white hover:bg-neutral-200 text-black font-bold py-2.5 rounded-xl text-xs transition">+ Agregar</button>
                             </div>
                         </form>
@@ -516,6 +525,7 @@
                                     <tr>
                                         <th class="py-2.5 px-2">Prenda</th>
                                         <th class="py-2.5 px-2 text-center">Stock</th>
+                                        <th class="py-2.5 px-2 text-center">Dcto %</th>
                                         <th class="py-2.5 px-2 text-right">Precio</th>
                                         <th class="py-2.5 px-2 text-right">Acciones</th>
                                     </tr>
@@ -1001,19 +1011,23 @@
             document.getElementById('divMetodoPago').classList.toggle('hidden', p === 'pendiente');
         }
 
-        function actualizarPrecioVenta() {
+        function actualizarPrecioVenta(desdeProducto = true) {
             const s = document.getElementById('ventaProducto');
             const info = document.getElementById('ventaStockInfo');
+            const dctoInput = document.getElementById('ventaDescuento');
             if (s.selectedIndex > 0) {
                 const opt = s.options[s.selectedIndex];
+                if (desdeProducto) dctoInput.value = opt.dataset.descuento || 0;
                 const cant = parseInt(document.getElementById('ventaCantidad').value) || 1;
-                document.getElementById('ventaTotal').value = (parseFloat(opt.dataset.precio) || 0) * cant;
+                const base = parseFloat(opt.dataset.precio) || 0;
+                const dcto = Math.min(100, Math.max(0, parseFloat(dctoInput.value) || 0));
+                document.getElementById('ventaTotal').value = Math.round(base * (1 - dcto / 100) * cant);
                 info.innerText = `Stock: ${opt.dataset.stock}`;
             } else {
                 info.innerText = '';
             }
         }
-        function calcularTotalVenta() { actualizarPrecioVenta(); }
+        function calcularTotalVenta() { actualizarPrecioVenta(false); }
 
         function registrarVenta(e) {
             e.preventDefault();
@@ -1221,7 +1235,8 @@
                 nombre: document.getElementById('prodNombre').value.trim(),
                 talla: document.getElementById('prodTallaColor').value.trim(),
                 stock: parseInt(document.getElementById('prodStock').value) || 0,
-                precio: parseFloat(document.getElementById('prodPrecio').value) || 0
+                precio: parseFloat(document.getElementById('prodPrecio').value) || 0,
+                descuento: Math.min(100, Math.max(0, parseFloat(document.getElementById('prodDescuento').value) || 0))
             });
             guardarDatos();
             actualizarTodo();
@@ -1272,10 +1287,15 @@
                             <input type="number" step="${esPrenda ? '1' : '0.01'}" id="editStock" class="w-full p-2.5 rounded-xl text-sm font-mono" value="${it.stock}">
                         </div>
                         <div>
-                            <label class="block text-[11px] uppercase text-muted mb-1">${esPrenda ? 'Precio Venta ($)' : 'Costo Ref. ($)'}</label>
+                            <label class="block text-[11px] uppercase text-muted mb-1">${esPrenda ? 'Precio Base ($)' : 'Costo Ref. ($)'}</label>
                             <input type="number" id="editPrecio" class="w-full p-2.5 rounded-xl text-sm font-mono" value="${esPrenda ? it.precio : it.precioUnitario}">
                         </div>
                     </div>
+                    ${esPrenda ? `
+                    <div>
+                        <label class="block text-[11px] uppercase text-muted mb-1">Descuento (%)</label>
+                        <input type="number" min="0" max="100" id="editDescuento" class="w-full p-2.5 rounded-xl text-sm font-mono" value="${it.descuento || 0}">
+                    </div>` : ''}
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
@@ -1292,6 +1312,7 @@
                 it.talla = document.getElementById('editTalla').value.trim();
                 it.stock = parseInt(document.getElementById('editStock').value) || 0;
                 it.precio = parseFloat(document.getElementById('editPrecio').value) || 0;
+                it.descuento = Math.min(100, Math.max(0, parseFloat(document.getElementById('editDescuento').value) || 0));
             } else {
                 it.stock = parseFloat(document.getElementById('editStock').value) || 0;
                 it.precioUnitario = parseFloat(document.getElementById('editPrecio').value) || 0;
@@ -1312,6 +1333,15 @@
             });
         }
 
+        function actualizarDescuentoProducto(id, val) {
+            const p = appData.productos.find(x => x.id === id);
+            if (!p) return;
+            p.descuento = Math.min(100, Math.max(0, parseFloat(val) || 0));
+            guardarDatos();
+            actualizarTodo();
+            showToast(p.descuento > 0 ? `Descuento ${p.descuento}% aplicado` : 'Sin descuento');
+        }
+
         function renderizarInventario() {
             const b = document.getElementById('listaProductos');
             const filtroInv = (document.getElementById('filtroInventario')?.value || '').toLowerCase().trim();
@@ -1321,8 +1351,10 @@
             appData.productos.forEach(p => {
                 const st = parseInt(p.stock) || 0;
                 const pr = parseFloat(p.precio) || 0;
+                const dcto = Math.min(100, Math.max(0, parseFloat(p.descuento) || 0));
+                const prFinal = Math.round(pr * (1 - dcto / 100));
                 totalUnids += st;
-                valorCat += st * pr;
+                valorCat += st * prFinal;
             });
 
             const listaFiltrada = filtroInv
@@ -1330,11 +1362,13 @@
                 : appData.productos;
 
             if (listaFiltrada.length === 0) {
-                b.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-muted">No hay productos que coincidan.</td></tr>';
+                b.innerHTML = '<tr><td colspan="5" class="text-center py-6 text-muted">No hay productos que coincidan.</td></tr>';
             } else {
                 listaFiltrada.forEach(p => {
                     const st = parseInt(p.stock) || 0;
                     const pr = parseFloat(p.precio) || 0;
+                    const dcto = Math.min(100, Math.max(0, parseFloat(p.descuento) || 0));
+                    const prFinal = Math.round(pr * (1 - dcto / 100));
 
                     b.innerHTML += `
                         <tr class="hover:bg-elevated/50 transition">
@@ -1349,7 +1383,17 @@
                                     <button onclick="cambioRapidoStock('${p.id}', 1, true)" class="text-muted hover:text-white px-1 font-bold">+</button>
                                 </div>
                             </td>
-                            <td class="py-2.5 px-2 text-right font-mono text-white">${formatearMoneda(pr)}</td>
+                            <td class="py-2.5 px-2 text-center">
+                                <div class="inline-flex items-center space-x-1">
+                                    <input type="number" min="0" max="100" value="${dcto}" onchange="actualizarDescuentoProducto('${p.id}', this.value)" class="w-12 p-1 rounded-lg text-center font-mono text-[11px] ${dcto > 0 ? 'text-warn border-warn/40' : ''}">
+                                    <span class="text-[10px] text-muted">%</span>
+                                </div>
+                            </td>
+                            <td class="py-2.5 px-2 text-right font-mono">
+                                ${dcto > 0
+                                    ? `<div class="text-[10px] text-muted line-through">${formatearMoneda(pr)}</div><div class="text-pos font-bold">${formatearMoneda(prFinal)}</div>`
+                                    : `<span class="text-white">${formatearMoneda(pr)}</span>`}
+                            </td>
                             <td class="py-2.5 px-2 text-right space-x-1.5 whitespace-nowrap">
                                 <button onclick="abrirEditarItem('${p.id}', true)" class="text-muted hover:text-white p-1" title="Editar">
                                     <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1372,9 +1416,11 @@
             sc.innerHTML = '<option value="">-- Seleccionar prenda --</option>';
             appData.productos.forEach(p => {
                 const label = p.talla ? `${p.nombre} (${p.talla})` : p.nombre;
+                const dcto = Math.min(100, Math.max(0, parseFloat(p.descuento) || 0));
+                const prFinal = Math.round((parseFloat(p.precio) || 0) * (1 - dcto / 100));
                 sc.innerHTML += `<option value="${p.id}">${escHtml(label)}</option>`;
                 if (p.stock > 0) {
-                    s.innerHTML += `<option value="${p.id}" data-precio="${p.precio}" data-stock="${p.stock}">${escHtml(label)} — ${formatearMoneda(p.precio)}</option>`;
+                    s.innerHTML += `<option value="${p.id}" data-precio="${p.precio}" data-descuento="${dcto}" data-stock="${p.stock}">${escHtml(label)} — ${formatearMoneda(prFinal)}${dcto > 0 ? ` (-${dcto}%)` : ''}</option>`;
                 }
             });
         }
@@ -1757,6 +1803,19 @@
             });
         }
 
+        // ================= TAMAÑO DE TEXTO =================
+        let fontSizePx = parseInt(localStorage.getItem('sysProFontSize')) || 16;
+        function aplicarTamanoTexto() {
+            document.documentElement.style.fontSize = fontSizePx + 'px';
+        }
+        function cambiarTamanoTexto(delta) {
+            fontSizePx = Math.min(22, Math.max(13, fontSizePx + delta));
+            localStorage.setItem('sysProFontSize', fontSizePx);
+            aplicarTamanoTexto();
+            showToast(`Texto: ${fontSizePx}px`);
+        }
+
+        aplicarTamanoTexto();
         actualizarPreviewWsp();
     </script>
 </body>
