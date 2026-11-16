@@ -1179,7 +1179,10 @@
                         <div class="flex justify-between items-center">
                             <span class="text-muted">Pago</span>
                             ${(v.deuda || 0) > 0
-                                ? `<button onclick="mCobro('${v.id}', ${v.deuda})" class="px-2.5 py-1 rounded-lg bg-warn/10 border border-warn/40 text-warn hover:bg-warn hover:text-black transition font-mono font-bold text-[11px]">Cobrar ${formatearMoneda(v.deuda)}</button>`
+                                ? `<div class="flex items-center space-x-1.5">
+                                    <button onclick="recordarCobroWsp('${escHtml(v.cliente).replace(/'/g, "\\'")}', ${v.deuda}, '${escHtml(v.descripcion).replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg border border-line hover:border-white text-white transition text-[11px]" title="Recordar por WhatsApp">Recordar</button>
+                                    <button onclick="mCobro('${v.id}', ${v.deuda})" class="px-2.5 py-1 rounded-lg bg-warn/10 border border-warn/40 text-warn hover:bg-warn hover:text-black transition font-mono font-bold text-[11px]">Cobrar ${formatearMoneda(v.deuda)}</button>
+                                   </div>`
                                 : '<span class="text-pos font-semibold">Pagado</span>'}
                         </div>
                     </div>`;
@@ -1698,6 +1701,7 @@
                             ${c.deuda > 0 ? `<span class="ml-1.5 text-[10px] font-mono text-warn">(Debe ${formatearMoneda(c.deuda)})</span>` : ''}
                         </div>
                         <div class="flex space-x-1.5">
+                            ${c.deuda > 0 ? `<button onclick="recordarCobroWsp('${escHtml(c.nombre).replace(/'/g, "\\'")}', ${c.deuda}, '${escHtml(c.ultimoDetalle).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-warn/40 text-warn hover:bg-warn hover:text-black text-[11px] font-semibold transition">Cobrar</button>` : ''}
                             <button onclick="abrirEditarCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-line hover:border-white text-muted hover:text-white text-[11px] transition">Notas</button>
                             <button onclick="ventaRapidaCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg bg-white text-black font-bold text-[11px] hover:bg-neutral-200 transition">+ Venta</button>
                         </div>
@@ -1748,6 +1752,22 @@
             seleccionarTipoPOS('venta');
             document.getElementById('ventaCliente').value = nombre;
             document.getElementById('ventaProducto').focus();
+        }
+
+        function recordarCobroWsp(nombre, deuda, detalle) {
+            const cli = (appData.clientes || []).find(x => (x.nombre || '').toLowerCase() === (nombre || '').toLowerCase());
+            let tel = '';
+            if (cli && cli.contacto) {
+                const digits = cli.contacto.replace(/\D/g, '');
+                if (digits.length >= 8) tel = digits;
+            }
+            let msg = `Hola ${nombre}, te escribo de LostKey para recordarte el saldo pendiente de ${formatearMoneda(deuda)}`;
+            if (detalle) msg += ` por tu pedido (${detalle})`;
+            msg += `. ¡Quedo atento!`;
+            const url = tel
+                ? `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`
+                : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
         }
 
         // ================= GOOGLE SHEETS SYNC =================
