@@ -1407,11 +1407,25 @@
                         </select>
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3">
-                    <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
-                    <button onclick="execCobro('${id}')" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Registrar Pago</button>
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <button onclick="cerrarDeudaSinIngreso('${id}')" class="px-3 py-2 rounded-xl border border-line text-muted hover:text-white hover:border-white text-[11px] transition" title="Cierra la deuda sin sumar dinero a Ingresos">Ya pagado / Descuento ($0)</button>
+                    <div class="flex space-x-2">
+                        <button onclick="modalCaja(false)" class="px-4 py-2 text-xs text-muted hover:text-white">Cancelar</button>
+                        <button onclick="execCobro('${id}')" class="px-5 py-2 bg-white text-black font-bold rounded-xl text-xs">Registrar Pago</button>
+                    </div>
                 </div>`;
             modalCaja(true, h, 'Registrar Abono / Cobro');
+        }
+
+        function cerrarDeudaSinIngreso(id) {
+            const v = appData.transacciones.find(t => t.id === id);
+            if (!v) return;
+            v.deuda = 0;
+            v.estadoPago = 'completo';
+            guardarDatos();
+            actualizarTodo();
+            modalCaja(false);
+            showToast("Saldo cerrado (sin sumar dinero extra)");
         }
 
         function execCobro(id) {
@@ -1914,7 +1928,7 @@
                         <div>
                             <span class="block text-[10px] text-muted uppercase">Total</span>
                             <span class="font-mono font-bold text-pos">${formatearMoneda(c.totalGastado)}</span>
-                            ${c.deuda > 0 ? `<span class="ml-1.5 text-[10px] font-mono text-warn">(Debe ${formatearMoneda(c.deuda)})</span>` : ''}
+                            ${c.deuda > 0 ? `<button onclick="saldarDeudaCliente('${escHtml(c.nombre).replace(/'/g, "\\'")}')" class="ml-1.5 text-[10px] font-mono text-warn underline hover:text-white transition" title="Clic para cerrar o ajustar saldo">(Debe ${formatearMoneda(c.deuda)})</button>` : ''}
                         </div>
                         <div class="flex flex-wrap gap-1.5">
                             ${c.deuda > 0 ? `<button onclick="recordarCobroWsp('${escHtml(c.nombre).replace(/'/g, "\\'")}', ${c.deuda}, '${escHtml(c.ultimoDetalle).replace(/'/g, "\\'")}')" class="px-2.5 py-1.5 rounded-lg border border-warn/40 text-warn hover:bg-warn hover:text-black text-[11px] font-semibold transition">Cobrar</button>` : ''}
@@ -1984,6 +1998,39 @@
                 actualizarTodo();
                 showToast("Cliente eliminado");
             });
+        }
+
+        function saldarDeudaCliente(nombre) {
+            const key = (nombre || '').trim().toLowerCase();
+            const pendientes = appData.transacciones.filter(t => t.esVenta && (t.deuda || 0) > 0 && (t.cliente || '').trim().toLowerCase() === key);
+            if (pendientes.length === 0) return;
+            const totalDeuda = pendientes.reduce((a, b) => a + (parseFloat(b.deuda) || 0), 0);
+            const h = `
+                <p class="text-xs text-muted mb-4">El cliente <strong class="text-white">${escHtml(nombre)}</strong> figura con saldo pendiente de <strong class="text-warn font-mono">${formatearMoneda(totalDeuda)}</strong>.</p>
+                <div class="space-y-2.5">
+                    <button onclick="cerrarDeudasClienteSinIngreso('${escHtml(nombre).replace(/'/g, "\\'")}')" class="w-full py-3 px-4 rounded-xl bg-white text-black font-bold text-xs hover:bg-neutral-200 transition">
+                        Ya está todo pagado / Descuento (Dejar en $0)
+                    </button>
+                    <button onclick="modalCaja(false); showTab('pedidos');" class="w-full py-2.5 px-4 rounded-xl border border-line text-white text-xs hover:border-white transition">
+                        Ir a Pedidos para cobrar abono
+                    </button>
+                    <button onclick="modalCaja(false)" class="w-full py-2 text-xs text-muted hover:text-white">Cancelar</button>
+                </div>`;
+            modalCaja(true, h, `Saldo de ${nombre}`);
+        }
+
+        function cerrarDeudasClienteSinIngreso(nombre) {
+            const key = (nombre || '').trim().toLowerCase();
+            appData.transacciones.forEach(t => {
+                if (t.esVenta && (t.deuda || 0) > 0 && (t.cliente || '').trim().toLowerCase() === key) {
+                    t.deuda = 0;
+                    t.estadoPago = 'completo';
+                }
+            });
+            guardarDatos();
+            actualizarTodo();
+            modalCaja(false);
+            showToast("Cliente marcado como todo pagado");
         }
 
         function verUtilidadCliente(nombre) {
